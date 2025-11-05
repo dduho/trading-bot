@@ -62,6 +62,26 @@ execution:
   order_type: limit  # market or limit
   slippage_tolerance: 0.5  # % tolerance for price slippage
 
+# Adaptive Learning System
+learning:
+  enabled: true  # Enable/disable learning system
+  learning_interval_hours: 24  # How often to run learning cycles (in hours)
+  min_trades_for_learning: 50  # Minimum trades needed to start learning
+  adaptation_aggressiveness: moderate  # conservative, moderate, or aggressive
+  auto_apply_adaptations: false  # Auto-apply learned improvements (false = manual review)
+
+  # ML Model settings
+  ml_model:
+    type: random_forest  # random_forest or gradient_boosting
+    retrain_interval_hours: 168  # Retrain model every week (168 hours)
+    min_accuracy_threshold: 0.60  # Minimum model accuracy to use predictions
+
+  # Learning goals
+  target_metrics:
+    win_rate: 0.55  # Target 55% win rate
+    profit_factor: 2.0  # Target profit factor
+    sharpe_ratio: 1.5  # Target Sharpe ratio
+
 # Notifications (optional)
 notifications:
   enabled: false

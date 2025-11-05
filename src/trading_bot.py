@@ -17,6 +17,10 @@ from technical_analysis import TechnicalAnalyzer
 from signal_generator import SignalGenerator, Signal
 from risk_manager import RiskManager
 from order_executor import OrderExecutor, TradingMode
+from trade_database import TradeDatabase
+from performance_analyzer import PerformanceAnalyzer
+from ml_optimizer import MLOptimizer
+from learning_engine import AdaptiveLearningEngine
 
 # Initialize colorama for colored output
 init(autoreset=True)
@@ -74,6 +78,25 @@ class TradingBot:
         self.analyzer = TechnicalAnalyzer(self.config.get('indicators', {}))
         self.signal_generator = SignalGenerator(self.config.get('strategy', {}))
         self.risk_manager = RiskManager(self.config.get('risk', {}))
+
+        # Initialize learning system
+        learning_config = self.config.get('learning', {
+            'enabled': True,
+            'learning_interval_hours': 24,
+            'min_trades_for_learning': 50,
+            'adaptation_aggressiveness': 'moderate',
+            'auto_apply_adaptations': False
+        })
+
+        self.trade_db = TradeDatabase()
+        self.perf_analyzer = PerformanceAnalyzer(self.trade_db)
+        self.ml_optimizer = MLOptimizer(self.trade_db)
+        self.learning_engine = AdaptiveLearningEngine(
+            self.trade_db,
+            self.perf_analyzer,
+            self.ml_optimizer,
+            learning_config
+        )
 
         # Trading state
         self.symbols = self.config.get('symbols', ['BTC/USDT'])
@@ -171,13 +194,44 @@ class TradingBot:
             # Get market summary
             market_summary = self.analyzer.get_market_summary(df_with_indicators)
 
+            # Enhance signal with ML prediction if available
+            latest_row = df_with_indicators.iloc[-1]
+            market_conditions = {
+                'rsi': latest_row.get('rsi'),
+                'macd': latest_row.get('macd'),
+                'macd_signal': latest_row.get('macd_signal'),
+                'macd_hist': latest_row.get('macd_hist'),
+                'sma_short': latest_row.get('sma_short'),
+                'sma_long': latest_row.get('sma_long'),
+                'ema_short': latest_row.get('ema_short'),
+                'ema_long': latest_row.get('ema_long'),
+                'bb_upper': latest_row.get('bb_upper'),
+                'bb_middle': latest_row.get('bb_middle'),
+                'bb_lower': latest_row.get('bb_lower'),
+                'atr': latest_row.get('atr'),
+                'volume': latest_row.get('volume'),
+                'volume_ratio': latest_row.get('volume_ratio'),
+                'trend': market_summary.get('trend'),
+                'signal_confidence': signal_result.get('confidence'),
+                'close': latest_row.get('close')
+            }
+
+            # Enhance confidence with ML
+            ml_enhanced_confidence = self.learning_engine.get_ml_enhanced_signal_confidence(
+                signal_result, market_conditions
+            )
+            signal_result['ml_enhanced_confidence'] = ml_enhanced_confidence
+            signal_result['original_confidence'] = signal_result['confidence']
+            signal_result['confidence'] = ml_enhanced_confidence
+
             return {
                 'symbol': symbol,
                 'timestamp': datetime.now(),
                 'price': df['close'].iloc[-1],
                 'signal': signal_result,
                 'market': market_summary,
-                'dataframe': df_with_indicators
+                'dataframe': df_with_indicators,
+                'market_conditions': market_conditions
             }
 
         except Exception as e:
@@ -256,6 +310,29 @@ class TradingBot:
                         take_profit
                     )
 
+                    # Record trade in database for learning
+                    trade_id = self.trade_db.insert_trade({
+                        'symbol': symbol,
+                        'side': 'long',
+                        'entry_price': actual_price,
+                        'quantity': quantity,
+                        'stop_loss': stop_loss,
+                        'take_profit': take_profit,
+                        'entry_time': datetime.now(),
+                        'status': 'open',
+                        'trading_mode': self.trading_mode.value
+                    })
+
+                    # Record market conditions at entry
+                    if 'market_conditions' in analysis:
+                        conditions = analysis['market_conditions'].copy()
+                        conditions['timestamp'] = datetime.now()
+                        conditions['signal_reason'] = signal['reason']
+                        self.trade_db.insert_trade_conditions(trade_id, conditions)
+
+                    # Store trade_id in position for later updates
+                    position.trade_id = trade_id
+
                     # Place stop loss and take profit orders (if not paper mode)
                     if self.trading_mode != TradingMode.PAPER:
                         # Stop loss order
@@ -293,6 +370,21 @@ class TradingBot:
                 closed = self.risk_manager.close_position(symbol, actual_price, "Signal: SELL")
                 if closed:
                     self._print_close(symbol, actual_price, closed.pnl, "SELL Signal")
+
+                    # Update trade in database
+                    if hasattr(position, 'trade_id'):
+                        duration_minutes = (datetime.now() - closed.entry_time).total_seconds() / 60
+                        pnl_percent = (closed.pnl / (closed.entry_price * closed.quantity)) * 100
+
+                        self.trade_db.update_trade(position.trade_id, {
+                            'exit_price': actual_price,
+                            'exit_time': datetime.now(),
+                            'pnl': closed.pnl,
+                            'pnl_percent': pnl_percent,
+                            'status': 'closed',
+                            'exit_reason': 'Signal: SELL',
+                            'duration_minutes': duration_minutes
+                        })
             else:
                 logger.error(f"Failed to execute SELL order for {symbol}")
 
@@ -311,7 +403,7 @@ class TradingBot:
         # Update positions
         closed = self.risk_manager.update_positions(prices)
 
-        # Print closed positions
+        # Print closed positions and update database
         for pos in closed:
             self._print_close(
                 pos['symbol'],
@@ -319,6 +411,21 @@ class TradingBot:
                 pos['pnl'],
                 "Stop/Target Hit"
             )
+
+            # Update trade in database
+            if 'trade_id' in pos:
+                duration_minutes = (datetime.now() - pos['entry_time']).total_seconds() / 60
+                pnl_percent = (pos['pnl'] / (pos['entry_price'] * pos['quantity'])) * 100
+
+                self.trade_db.update_trade(pos['trade_id'], {
+                    'exit_price': pos['exit_price'],
+                    'exit_time': datetime.now(),
+                    'pnl': pos['pnl'],
+                    'pnl_percent': pnl_percent,
+                    'status': 'closed',
+                    'exit_reason': 'Stop/Target Hit',
+                    'duration_minutes': duration_minutes
+                })
 
     def _print_trade(self, action: str, symbol: str, price: float,
                     quantity: float, confidence: float, reason: str,
@@ -398,10 +505,38 @@ class TradingBot:
         print(f"Timeframe: {self.timeframe}")
         print(f"Update Interval: {self.update_interval}s\n")
 
+        # Print learning system status
+        learning_params = self.learning_engine.get_current_strategy_params()
+        print(f"{Fore.MAGENTA}Learning System: {'ENABLED' if learning_params['learning_enabled'] else 'DISABLED'}{Style.RESET_ALL}")
+        print(f"Current Weights: {learning_params['weights']}")
+        print(f"Min Confidence: {learning_params['min_confidence']}\n")
+
         iteration = 0
         while self.running:
             try:
                 iteration += 1
+
+                # Check if learning cycle should be triggered
+                if self.learning_engine.should_trigger_learning():
+                    logger.info(f"\n{Fore.MAGENTA}{'='*80}")
+                    logger.info("Triggering Learning Cycle...")
+                    logger.info(f"{'='*80}{Style.RESET_ALL}\n")
+
+                    learning_results = self.learning_engine.execute_learning_cycle()
+
+                    if learning_results['success']:
+                        logger.info(f"\n{Fore.GREEN}Learning cycle completed successfully!{Style.RESET_ALL}")
+                        logger.info(f"Adaptations identified: {len(learning_results.get('adaptations', []))}")
+
+                        # Print learning report
+                        report = self.learning_engine.generate_learning_report()
+                        print(report)
+
+                        # Print performance report
+                        perf_report = self.perf_analyzer.generate_performance_report()
+                        print(perf_report)
+                    else:
+                        logger.warning(f"Learning cycle had errors: {learning_results.get('errors')}")
 
                 # Analyze all symbols
                 analyses = []
@@ -459,6 +594,33 @@ class TradingBot:
             print(f"  Avg Win:         ${stats['avg_win']:.2f}")
             print(f"  Avg Loss:        ${stats['avg_loss']:.2f}")
             print(f"  Profit Factor:   {stats['profit_factor']:.2f}")
+
+            # Save performance snapshot to database
+            try:
+                self.trade_db.insert_strategy_performance({
+                    'strategy_name': self.config.get('strategy', {}).get('name', 'Multi-Indicator Strategy'),
+                    'total_trades': stats['total_trades'],
+                    'winning_trades': stats['winning_trades'],
+                    'losing_trades': stats['losing_trades'],
+                    'win_rate': stats['win_rate'] / 100,
+                    'total_pnl': stats['total_pnl'],
+                    'avg_win': stats['avg_win'],
+                    'avg_loss': stats['avg_loss'],
+                    'profit_factor': stats['profit_factor'],
+                    'sharpe_ratio': 0.0,  # Could be calculated if we track returns
+                    'max_drawdown': 0.0,  # Could be calculated if we track equity curve
+                    'config': self.config
+                })
+                logger.info("Performance snapshot saved to database")
+            except Exception as e:
+                logger.error(f"Error saving performance snapshot: {e}")
+
+        # Close database connection
+        try:
+            self.trade_db.close()
+            logger.info("Database connection closed")
+        except Exception as e:
+            logger.error(f"Error closing database: {e}")
 
 
 def main():
