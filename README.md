@@ -96,6 +96,8 @@ TIMEFRAME=1m
 
 **⚠️ IMPORTANT**: Commencez TOUJOURS en mode `paper` (simulation) avant de passer en mode `live`!
 
+**📚 GUIDE COMPLET DES MODES**: Consultez [TRADING_MODES.md](TRADING_MODES.md) pour un guide détaillé sur les modes paper, testnet et live.
+
 ### 2. Configuration de la Stratégie
 
 Éditez `config.yaml` pour ajuster:
@@ -131,6 +133,72 @@ risk:
 ```
 
 ## 🎮 Utilisation
+
+## 🎯 Modes de Trading
+
+Le bot supporte **trois modes** de trading avec des niveaux de risque différents:
+
+### Mode 1: 🟢 PAPER (Simulation) - RECOMMANDÉ POUR COMMENCER
+
+**Mode par défaut - Aucun risque financier**
+
+```bash
+# Dans .env
+TRADING_MODE=paper
+```
+
+- ✅ Simulation complète sans ordres réels
+- ✅ Pas besoin de clés API
+- ✅ Capital virtuel: 10,000 USDT
+- ✅ Données de marché réelles
+- ✅ Parfait pour tester votre stratégie
+
+### Mode 2: 🟡 TESTNET (Réseau de Test)
+
+**Test avec API réelles mais argent fictif**
+
+```bash
+# Dans .env
+TRADING_MODE=testnet
+API_KEY=votre_cle_testnet
+API_SECRET=votre_secret_testnet
+```
+
+- ✅ Utilise le testnet/sandbox de l'exchange
+- ✅ Appels API réels avec argent factice
+- ⚠️ Nécessite des clés API testnet
+- ✅ Teste l'intégration complète
+
+**Pour obtenir des clés testnet Binance:**
+- https://testnet.binance.vision/
+
+### Mode 3: 🔴 LIVE (Trading Réel) - DANGER!
+
+**⚠️ ARGENT RÉEL - RISQUE MAXIMUM ⚠️**
+
+```bash
+# Dans .env
+TRADING_MODE=live
+API_KEY=votre_cle_production
+API_SECRET=votre_secret_production
+```
+
+- 🔴 Ordres RÉELS avec argent RÉEL
+- 🔴 Vous pouvez PERDRE tout votre capital
+- ⚠️ Nécessite des clés API de production
+- 🔴 À utiliser UNIQUEMENT après tests approfondis
+
+**AVANT d'activer le mode live:**
+1. ✅ Tester en mode paper pendant 1+ semaine
+2. ✅ Tester en mode testnet avec succès
+3. ✅ Backtester votre stratégie
+4. ✅ Configurer des limites de risque strictes
+5. ✅ Désactiver la permission WITHDRAW sur les clés API
+6. ✅ Commencer avec un PETIT montant
+
+**📚 GUIDE COMPLET**: Consultez [TRADING_MODES.md](TRADING_MODES.md) pour toutes les instructions détaillées.
+
+---
 
 ### Lancer le Bot
 

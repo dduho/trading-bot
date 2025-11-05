@@ -17,34 +17,60 @@ logger = logging.getLogger(__name__)
 class MarketDataFeed:
     """Connects to exchanges and provides market data"""
 
-    def __init__(self, exchange_name: str = 'binance', testnet: bool = True):
+    def __init__(self, exchange_name: str = 'binance', api_key: str = None,
+                 api_secret: str = None, testnet: bool = True, trading_mode: str = 'paper'):
         """
         Initialize market data feed
 
         Args:
             exchange_name: Name of the exchange (binance, coinbase, kraken, etc.)
-            testnet: Use testnet/paper trading if available
+            api_key: Exchange API key (required for testnet and live trading)
+            api_secret: Exchange API secret (required for testnet and live trading)
+            testnet: Use testnet/sandbox mode if available
+            trading_mode: 'paper', 'testnet', or 'live'
         """
         self.exchange_name = exchange_name
+        self.api_key = api_key
+        self.api_secret = api_secret
         self.testnet = testnet
+        self.trading_mode = trading_mode
         self.exchange = self._initialize_exchange()
 
     def _initialize_exchange(self):
         """Initialize the exchange connection"""
         try:
             exchange_class = getattr(ccxt, self.exchange_name)
-            exchange = exchange_class({
+
+            # Build exchange config
+            config = {
                 'enableRateLimit': True,
                 'options': {
                     'defaultType': 'spot',  # spot, future, margin
                 }
-            })
+            }
 
-            if self.testnet and hasattr(exchange, 'set_sandbox_mode'):
-                exchange.set_sandbox_mode(True)
-                logger.info(f"Connected to {self.exchange_name} TESTNET")
+            # Add API credentials if provided
+            if self.api_key and self.api_secret:
+                config['apiKey'] = self.api_key
+                config['secret'] = self.api_secret
+                logger.info(f"API credentials loaded for {self.exchange_name}")
             else:
-                logger.info(f"Connected to {self.exchange_name}")
+                if self.trading_mode in ['testnet', 'live']:
+                    logger.warning("⚠️  No API credentials provided - trading will not be possible!")
+
+            exchange = exchange_class(config)
+
+            # Set sandbox mode for testnet
+            if self.trading_mode == 'testnet' or (self.testnet and self.trading_mode != 'live'):
+                if hasattr(exchange, 'set_sandbox_mode'):
+                    exchange.set_sandbox_mode(True)
+                    logger.info(f"✅ Connected to {self.exchange_name} TESTNET (Sandbox Mode)")
+                else:
+                    logger.warning(f"⚠️  {self.exchange_name} does not support testnet/sandbox mode")
+            elif self.trading_mode == 'live':
+                logger.warning(f"🔴 Connected to {self.exchange_name} LIVE MODE - REAL MONEY!")
+            else:
+                logger.info(f"📝 Connected to {self.exchange_name} (Paper Mode)")
 
             return exchange
 
