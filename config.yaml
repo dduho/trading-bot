@@ -1,0 +1,68 @@
+# Trading Bot Configuration
+
+# Trading pairs to monitor
+symbols:
+  - BTC/USDT
+  - ETH/USDT
+  - BNB/USDT
+
+# Analysis timeframes
+timeframes:
+  - 1m   # 1 minute
+  - 5m   # 5 minutes
+  - 15m  # 15 minutes
+
+# Technical indicators configuration
+indicators:
+  rsi:
+    period: 14
+    overbought: 70
+    oversold: 30
+
+  macd:
+    fast_period: 12
+    slow_period: 26
+    signal_period: 9
+
+  moving_averages:
+    sma_short: 20
+    sma_long: 50
+    ema_short: 12
+    ema_long: 26
+
+  bollinger_bands:
+    period: 20
+    std_dev: 2
+
+# Trading strategy
+strategy:
+  name: "Multi-Indicator Strategy"
+  min_confidence: 0.6  # Minimum confidence score (0-1) to execute trade
+
+  # Signal weights (must sum to 1.0)
+  weights:
+    rsi: 0.25
+    macd: 0.25
+    moving_averages: 0.25
+    volume: 0.15
+    trend: 0.10
+
+# Risk management
+risk:
+  max_position_size_percent: 10  # Max % of portfolio per position
+  stop_loss_percent: 2.0
+  take_profit_percent: 5.0
+  trailing_stop_percent: 1.5
+  max_open_positions: 3
+  max_daily_trades: 10
+  max_daily_loss_percent: 5.0
+
+# Execution settings
+execution:
+  order_type: limit  # market or limit
+  slippage_tolerance: 0.5  # % tolerance for price slippage
+
+# Notifications (optional)
+notifications:
+  enabled: false
+  # Add your notification settings (email, telegram, etc.)
