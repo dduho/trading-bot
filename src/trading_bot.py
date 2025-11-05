@@ -6,6 +6,7 @@ Coordinates all components and executes the trading strategy
 import asyncio
 import yaml
 import os
+import sys
 from datetime import datetime
 from typing import Dict, List
 import logging
@@ -15,6 +16,7 @@ from market_data import MarketDataFeed
 from technical_analysis import TechnicalAnalyzer
 from signal_generator import SignalGenerator, Signal
 from risk_manager import RiskManager
+from order_executor import OrderExecutor, TradingMode
 
 # Initialize colorama for colored output
 init(autoreset=True)
@@ -43,13 +45,32 @@ class TradingBot:
         """
         self.config = self._load_config(config_path)
         self.running = False
-        self.capital = 10000  # Default starting capital (paper trading)
 
-        # Initialize components
+        # Get trading mode from environment
+        mode_str = os.getenv('TRADING_MODE', 'paper').lower()
+        self.trading_mode = self._parse_trading_mode(mode_str)
+
+        # Get API credentials
+        api_key = os.getenv('API_KEY')
+        api_secret = os.getenv('API_SECRET')
+
+        # Initialize market data feed
+        exchange_name = os.getenv('EXCHANGE', 'binance')
         self.market_feed = MarketDataFeed(
-            exchange_name=os.getenv('EXCHANGE', 'binance'),
-            testnet=True
+            exchange_name=exchange_name,
+            api_key=api_key,
+            api_secret=api_secret,
+            testnet=(self.trading_mode == TradingMode.TESTNET),
+            trading_mode=mode_str
         )
+
+        # Initialize order executor
+        self.executor = OrderExecutor(
+            exchange=self.market_feed.exchange,
+            mode=self.trading_mode
+        )
+
+        # Initialize analysis components
         self.analyzer = TechnicalAnalyzer(self.config.get('indicators', {}))
         self.signal_generator = SignalGenerator(self.config.get('strategy', {}))
         self.risk_manager = RiskManager(self.config.get('risk', {}))
@@ -59,7 +80,47 @@ class TradingBot:
         self.timeframe = os.getenv('TIMEFRAME', '1m')
         self.update_interval = self._timeframe_to_seconds(self.timeframe)
 
-        logger.info(f"Trading Bot initialized with {len(self.symbols)} symbols")
+        # Get initial capital
+        if self.trading_mode == TradingMode.PAPER:
+            self.capital = 10000  # Default paper trading capital
+        else:
+            # Get real balance
+            balance = self.executor.get_balance()
+            self.capital = balance.get('total', {}).get('USDT', 0)
+
+        self._print_initialization_message()
+        logger.info(f"Trading Bot initialized with {len(self.symbols)} symbols in {self.trading_mode.value.upper()} mode")
+
+    def _parse_trading_mode(self, mode_str: str) -> TradingMode:
+        """Parse trading mode string to TradingMode enum"""
+        mode_map = {
+            'paper': TradingMode.PAPER,
+            'testnet': TradingMode.TESTNET,
+            'live': TradingMode.LIVE
+        }
+        return mode_map.get(mode_str, TradingMode.PAPER)
+
+    def _print_initialization_message(self):
+        """Print initialization message with warnings"""
+        if self.trading_mode == TradingMode.LIVE:
+            print(f"\n{Fore.RED}{'='*80}")
+            print(f"⚠️  WARNING: LIVE TRADING MODE - REAL MONEY AT RISK! ⚠️")
+            print(f"{'='*80}{Style.RESET_ALL}\n")
+            print(f"{Fore.YELLOW}This bot will execute REAL trades with REAL money!")
+            print(f"Make sure you understand the risks and have tested your strategy.")
+            print(f"Capital available: ${self.capital:.2f} USDT{Style.RESET_ALL}\n")
+        elif self.trading_mode == TradingMode.TESTNET:
+            print(f"\n{Fore.CYAN}{'='*80}")
+            print(f"📝 TESTNET MODE - Using exchange testnet/sandbox")
+            print(f"{'='*80}{Style.RESET_ALL}\n")
+            print(f"This mode uses the exchange's testnet with fake money.")
+            print(f"Orders are real API calls but with test funds.\n")
+        else:
+            print(f"\n{Fore.GREEN}{'='*80}")
+            print(f"📝 PAPER TRADING MODE - Simulation only")
+            print(f"{'='*80}{Style.RESET_ALL}\n")
+            print(f"This is a safe simulation mode. No real orders will be executed.")
+            print(f"Starting capital: ${self.capital:.2f} USDT\n")
 
     def _load_config(self, config_path: str) -> Dict:
         """Load configuration from YAML file"""
@@ -125,7 +186,7 @@ class TradingBot:
 
     def execute_signal(self, analysis: Dict):
         """
-        Execute trading signal
+        Execute trading signal (with real orders if not in paper mode)
 
         Args:
             analysis: Analysis results from analyze_symbol
@@ -155,33 +216,85 @@ class TradingBot:
                 stop_loss=stop_loss
             )
 
-            # Open position
-            position = self.risk_manager.open_position(
-                symbol=symbol,
-                side='long',
-                entry_price=price,
-                quantity=quantity,
-                stop_loss=stop_loss,
-                take_profit=take_profit
-            )
+            # Validate order before execution
+            is_valid, error_msg = self.executor.validate_order(symbol, 'buy', quantity, price)
+            if not is_valid:
+                logger.warning(f"Order validation failed: {error_msg}")
+                return
 
-            if position:
-                self._print_trade(
-                    "BUY",
-                    symbol,
-                    price,
-                    quantity,
-                    signal['confidence'],
-                    signal['reason'],
-                    stop_loss,
-                    take_profit
+            # Execute the BUY order
+            order = None
+            order_type = self.config.get('execution', {}).get('order_type', 'market')
+
+            if order_type == 'market':
+                order = self.executor.create_market_order(symbol, 'buy', quantity)
+            else:  # limit order
+                order = self.executor.create_limit_order(symbol, 'buy', quantity, price)
+
+            if order:
+                # Order executed successfully - track position
+                actual_price = order.get('price', price)
+
+                position = self.risk_manager.open_position(
+                    symbol=symbol,
+                    side='long',
+                    entry_price=actual_price,
+                    quantity=quantity,
+                    stop_loss=stop_loss,
+                    take_profit=take_profit
                 )
+
+                if position:
+                    self._print_trade(
+                        "BUY",
+                        symbol,
+                        actual_price,
+                        quantity,
+                        signal['confidence'],
+                        signal['reason'],
+                        stop_loss,
+                        take_profit
+                    )
+
+                    # Place stop loss and take profit orders (if not paper mode)
+                    if self.trading_mode != TradingMode.PAPER:
+                        # Stop loss order
+                        self.executor.create_stop_loss_order(symbol, 'sell', quantity, stop_loss)
+
+                        # Take profit order (limit sell)
+                        self.executor.create_limit_order(symbol, 'sell', quantity, take_profit)
+
+            else:
+                logger.error(f"Failed to execute BUY order for {symbol}")
 
         # SELL signal - close existing position
         elif signal['action'] == 'SELL' and symbol in self.risk_manager.positions:
-            closed = self.risk_manager.close_position(symbol, price, "Signal: SELL")
-            if closed:
-                self._print_close(symbol, price, closed.pnl, "SELL Signal")
+            position = self.risk_manager.positions[symbol]
+
+            # Execute the SELL order
+            order = None
+            order_type = self.config.get('execution', {}).get('order_type', 'market')
+
+            if order_type == 'market':
+                order = self.executor.create_market_order(symbol, 'sell', position.quantity)
+            else:  # limit order
+                order = self.executor.create_limit_order(symbol, 'sell', position.quantity, price)
+
+            if order:
+                actual_price = order.get('price', price)
+
+                # Cancel any open stop/tp orders for this symbol
+                if self.trading_mode != TradingMode.PAPER:
+                    open_orders = self.executor.get_open_orders(symbol)
+                    for open_order in open_orders:
+                        self.executor.cancel_order(open_order['id'], symbol)
+
+                # Close position tracking
+                closed = self.risk_manager.close_position(symbol, actual_price, "Signal: SELL")
+                if closed:
+                    self._print_close(symbol, actual_price, closed.pnl, "SELL Signal")
+            else:
+                logger.error(f"Failed to execute SELL order for {symbol}")
 
     def update_positions(self):
         """Update all open positions and check stops"""
@@ -351,6 +464,7 @@ class TradingBot:
 def main():
     """Main entry point"""
     from dotenv import load_dotenv
+    from safety_checks import pre_flight_check, emergency_stop_info
     load_dotenv()
 
     print(f"{Fore.CYAN}")
@@ -360,7 +474,20 @@ def main():
     print("╚═══════════════════════════════════════════════════════════════╝")
     print(f"{Style.RESET_ALL}\n")
 
+    # Initialize bot
     bot = TradingBot()
+
+    # Get trading mode
+    trading_mode = os.getenv('TRADING_MODE', 'paper').lower()
+
+    # Perform safety checks
+    if not pre_flight_check(trading_mode, bot.config, bot.market_feed.exchange):
+        print(f"\n{Fore.RED}❌ Bot startup cancelled by user or failed safety checks.{Style.RESET_ALL}\n")
+        sys.exit(0)
+
+    # Show emergency stop info for live/testnet
+    if trading_mode in ['live', 'testnet']:
+        emergency_stop_info()
 
     try:
         bot.start()
