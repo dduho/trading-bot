@@ -1,10 +1,13 @@
 # Trading Bot Configuration
 
 # Trading pairs to monitor
+# Choix de cryptos volatiles pour apprentissage rapide
 symbols:
-  - BTC/USDT
-  - ETH/USDT
-  - BNB/USDT
+  - SOL/USDT    # Solana - haute volatilité
+  - AVAX/USDT   # Avalanche - mouvements fréquents
+  - MATIC/USDT  # Polygon - actif et volatile
+  - DOGE/USDT   # Dogecoin - très volatile
+  - ADA/USDT    # Cardano - bonne liquidité
 
 # Analysis timeframes
 timeframes:
@@ -37,24 +40,24 @@ indicators:
 # Trading strategy
 strategy:
   name: "Multi-Indicator Strategy"
-  min_confidence: 0.6  # Minimum confidence score (0-1) to execute trade
+  min_confidence: 0.45  # Réduit de 0.6 à 0.45 pour plus de trades (apprentissage rapide)
 
   # Signal weights (must sum to 1.0)
   weights:
-    rsi: 0.25
+    rsi: 0.30           # Augmenté pour cryptos volatiles
     macd: 0.25
-    moving_averages: 0.25
+    moving_averages: 0.20 #0.25
     volume: 0.15
     trend: 0.10
 
 # Risk management
 risk:
-  max_position_size_percent: 10  # Max % of portfolio per position
-  stop_loss_percent: 2.0
+  max_position_size_percent: 8   # Réduit à 8% pour plus de diversification. défaut 10%
+  stop_loss_percent: 2.5          # Légèrement augmenté pour la volatilité. défaut 2.0%
   take_profit_percent: 5.0
   trailing_stop_percent: 1.5
-  max_open_positions: 3
-  max_daily_trades: 10
+  max_open_positions: 5           # Augmenté de 3 à 5 positions. défaut 3
+  max_daily_trades: 25            # Augmenté de 10 à 25 pour apprentissage rapide. défaut 10
   max_daily_loss_percent: 5.0
 
 # Execution settings
@@ -65,9 +68,9 @@ execution:
 # Adaptive Learning System
 learning:
   enabled: true  # Enable/disable learning system
-  learning_interval_hours: 24  # How often to run learning cycles (in hours)
-  min_trades_for_learning: 50  # Minimum trades needed to start learning
-  adaptation_aggressiveness: moderate  # conservative, moderate, or aggressive
+  learning_interval_hours: 12  # Réduit à 12h pour apprentissage plus fréquent. défaut 24h
+  min_trades_for_learning: 30  # Réduit de 50 à 30 trades pour démarrer plus vite. défaut 50
+  adaptation_aggressiveness: aggressive  # Mode agressif pour apprentissage rapide. options: conservative, moderate, aggressive
   auto_apply_adaptations: false  # Auto-apply learned improvements (false = manual review)
 
   # ML Model settings

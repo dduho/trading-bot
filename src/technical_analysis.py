@@ -27,10 +27,9 @@ class TechnicalAnalyzer:
         """Default indicator configuration"""
         return {
             'rsi': {'period': 14, 'overbought': 70, 'oversold': 30},
-            'macd': {'fast': 12, 'slow': 26, 'signal': 9},
-            'sma': {'short': 20, 'long': 50},
-            'ema': {'short': 12, 'long': 26},
-            'bb': {'period': 20, 'std': 2}
+            'macd': {'fast_period': 12, 'slow_period': 26, 'signal_period': 9},
+            'moving_averages': {'sma_short': 20, 'sma_long': 50, 'ema_short': 12, 'ema_long': 26},
+            'bollinger_bands': {'period': 20, 'std_dev': 2}
         }
 
     def calculate_rsi(self, df: pd.DataFrame, period: int = None) -> pd.Series:
@@ -66,9 +65,9 @@ class TechnicalAnalyzer:
         Returns:
             Tuple of (MACD line, Signal line, Histogram)
         """
-        fast = self.config['macd']['fast']
-        slow = self.config['macd']['slow']
-        signal = self.config['macd']['signal']
+        fast = self.config['macd'].get('fast_period', self.config['macd'].get('fast', 12))
+        slow = self.config['macd'].get('slow_period', self.config['macd'].get('slow', 26))
+        signal = self.config['macd'].get('signal_period', self.config['macd'].get('signal', 9))
 
         ema_fast = df['close'].ewm(span=fast, adjust=False).mean()
         ema_slow = df['close'].ewm(span=slow, adjust=False).mean()
@@ -94,8 +93,9 @@ class TechnicalAnalyzer:
         Returns:
             Tuple of (upper band, middle band, lower band)
         """
-        period = self.config['bb']['period']
-        std_dev = self.config['bb']['std']
+        bb_config = self.config.get('bollinger_bands', self.config.get('bb', {}))
+        period = bb_config.get('period', 20)
+        std_dev = bb_config.get('std_dev', bb_config.get('std', 2))
 
         middle = df['close'].rolling(window=period).mean()
         std = df['close'].rolling(window=period).std()
@@ -161,8 +161,9 @@ class TechnicalAnalyzer:
         Returns:
             'uptrend', 'downtrend', or 'sideways'
         """
-        sma_short = self.calculate_sma(df, self.config['sma']['short'])
-        sma_long = self.calculate_sma(df, self.config['sma']['long'])
+        ma_config = self.config.get('moving_averages', self.config.get('sma', {}))
+        sma_short = self.calculate_sma(df, ma_config.get('sma_short', ma_config.get('short', 20)))
+        sma_long = self.calculate_sma(df, ma_config.get('sma_long', ma_config.get('long', 50)))
 
         if len(sma_short) < 2 or len(sma_long) < 2:
             return 'unknown'
@@ -199,10 +200,12 @@ class TechnicalAnalyzer:
             result['macd'], result['macd_signal'], result['macd_hist'] = self.calculate_macd(df)
 
             # Moving Averages
-            result['sma_short'] = self.calculate_sma(df, self.config['sma']['short'])
-            result['sma_long'] = self.calculate_sma(df, self.config['sma']['long'])
-            result['ema_short'] = self.calculate_ema(df, self.config['ema']['short'])
-            result['ema_long'] = self.calculate_ema(df, self.config['ema']['long'])
+            ma_config = self.config.get('moving_averages', self.config.get('sma', {}))
+            result['sma_short'] = self.calculate_sma(df, ma_config.get('sma_short', ma_config.get('short', 20)))
+            result['sma_long'] = self.calculate_sma(df, ma_config.get('sma_long', ma_config.get('long', 50)))
+            ema_config = self.config.get('moving_averages', self.config.get('ema', {}))
+            result['ema_short'] = self.calculate_ema(df, ema_config.get('ema_short', ema_config.get('short', 12)))
+            result['ema_long'] = self.calculate_ema(df, ema_config.get('ema_long', ema_config.get('long', 26)))
 
             # Bollinger Bands
             result['bb_upper'], result['bb_middle'], result['bb_lower'] = self.calculate_bollinger_bands(df)

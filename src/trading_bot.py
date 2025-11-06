@@ -556,16 +556,18 @@ class TradingBot:
                     self._print_status(analyses)
 
                 # Wait for next update
+                logger.debug(f"Iteration {iteration} complete, waiting {self.update_interval}s for next update...")
                 await asyncio.sleep(self.update_interval)
+                logger.debug(f"Woke up from sleep, starting iteration {iteration + 1}")
 
             except KeyboardInterrupt:
                 logger.info("Received keyboard interrupt")
                 break
             except Exception as e:
-                logger.error(f"Error in main loop: {e}")
+                logger.error(f"Error in main loop: {e}", exc_info=True)
                 await asyncio.sleep(5)
 
-        logger.info("Trading bot stopped")
+        logger.info(f"Trading bot stopped - self.running = {self.running}")
 
     def start(self):
         """Start the trading bot"""
@@ -627,13 +629,21 @@ def main():
     """Main entry point"""
     from dotenv import load_dotenv
     from safety_checks import pre_flight_check, emergency_stop_info
+    import sys
+    
+    # Fix encoding for Windows
+    if sys.platform == 'win32':
+        import codecs
+        sys.stdout.reconfigure(encoding='utf-8')
+        sys.stderr.reconfigure(encoding='utf-8')
+    
     load_dotenv()
 
     print(f"{Fore.CYAN}")
-    print("╔═══════════════════════════════════════════════════════════════╗")
-    print("║                    TRADING BOT v1.0                           ║")
-    print("║              Real-time Market Analysis System                 ║")
-    print("╚═══════════════════════════════════════════════════════════════╝")
+    print("=" * 67)
+    print("                    TRADING BOT v1.0                           ")
+    print("              Real-time Market Analysis System                 ")
+    print("=" * 67)
     print(f"{Style.RESET_ALL}\n")
 
     # Initialize bot
