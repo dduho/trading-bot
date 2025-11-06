@@ -29,6 +29,7 @@ class Position:
         self.exit_time = None
         self.pnl = 0
         self.status = 'open'  # 'open', 'closed'
+        self.trade_id = None  # Database trade ID for learning system
 
     def update_pnl(self, current_price: float) -> float:
         """Calculate current profit/loss"""
@@ -79,8 +80,9 @@ class Position:
             'take_profit': self.take_profit,
             'pnl': self.pnl,
             'status': self.status,
-            'entry_time': self.entry_time.isoformat(),
-            'exit_time': self.exit_time.isoformat() if self.exit_time else None
+            'entry_time': self.entry_time,  # Return datetime object instead of isoformat
+            'exit_time': self.exit_time,
+            'trade_id': self.trade_id
         }
 
 
