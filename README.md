@@ -67,6 +67,7 @@ venv\Scripts\activate
 
 # Installer les dépendances
 pip install -r requirements.txt
+python -m pip install pyyaml pandas numpy python-dotenv colorama requests aiohttp websockets
 
 # Copier le fichier de configuration
 cp .env.example .env
