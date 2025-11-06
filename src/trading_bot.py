@@ -7,6 +7,14 @@ import asyncio
 import yaml
 import os
 import sys
+
+# Fix encoding AVANT tout le reste pour Windows
+if sys.platform == 'win32':
+    import codecs
+    # Forcer UTF-8 pour stdout et stderr
+    sys.stdout = codecs.getwriter('utf-8')(sys.stdout.buffer, errors='replace')
+    sys.stderr = codecs.getwriter('utf-8')(sys.stderr.buffer, errors='replace')
+
 from datetime import datetime
 from typing import Dict, List
 import logging
@@ -25,15 +33,23 @@ from learning_engine import AdaptiveLearningEngine
 # Initialize colorama for colored output
 init(autoreset=True)
 
-# Setup logging
+# Setup logging avec UTF-8
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    encoding='utf-8',
+    errors='replace',
     handlers=[
-        logging.FileHandler('trading_bot.log'),
+        logging.FileHandler('trading_bot.log', encoding='utf-8', errors='replace'),
         logging.StreamHandler()
     ]
 )
+
+# Forcer UTF-8 sur le StreamHandler aussi
+for handler in logging.root.handlers:
+    if isinstance(handler, logging.StreamHandler):
+        handler.stream = codecs.getwriter('utf-8')(handler.stream.buffer, errors='replace')
+
 logger = logging.getLogger(__name__)
 
 

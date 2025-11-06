@@ -11,9 +11,9 @@ symbols:
 
 # Analysis timeframes
 timeframes:
-  - 1m   # 1 minute
-  - 5m   # 5 minutes
+  - 5m   # 5 minutes (timeframe principal - moins de bruit)
   - 15m  # 15 minutes
+  - 1h   # 1 heure (pour tendance globale)
 
 # Technical indicators configuration
 indicators:
@@ -40,13 +40,13 @@ indicators:
 # Trading strategy
 strategy:
   name: "Multi-Indicator Strategy"
-  min_confidence: 0.45  # Réduit de 0.6 à 0.45 pour plus de trades (apprentissage rapide)
+  min_confidence: 0.30  # Réduit à 30% pour mode apprentissage paper trading
 
   # Signal weights (must sum to 1.0)
   weights:
     rsi: 0.30           # Augmenté pour cryptos volatiles
     macd: 0.25
-    moving_averages: 0.20 #0.25
+    moving_averages: 0.20
     volume: 0.15
     trend: 0.10
 
@@ -56,6 +56,7 @@ risk:
   stop_loss_percent: 2.5          # Légèrement augmenté pour la volatilité. défaut 2.0%
   take_profit_percent: 5.0
   trailing_stop_percent: 1.5
+  risk_reward_ratio: 2.0          # Ratio risque/récompense (1:2)
   max_open_positions: 5           # Augmenté de 3 à 5 positions. défaut 3
   max_daily_trades: 25            # Augmenté de 10 à 25 pour apprentissage rapide. défaut 10
   max_daily_loss_percent: 5.0
