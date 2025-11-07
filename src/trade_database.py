@@ -496,8 +496,13 @@ class TradeDatabase:
             stats = dict(row)
             stats['win_rate'] = stats['winning_trades'] / stats['total_trades'] if stats['total_trades'] > 0 else 0
 
+            # Assurer que les valeurs ne sont pas None
+            stats['avg_win'] = stats['avg_win'] or 0.0
+            stats['avg_loss'] = stats['avg_loss'] or 0.0
+            stats['total_pnl'] = stats['total_pnl'] or 0.0
+
             # Calculate profit factor
-            if stats['avg_loss'] and stats['avg_loss'] != 0:
+            if stats['avg_loss'] and stats['avg_loss'] != 0 and stats['losing_trades'] > 0:
                 stats['profit_factor'] = abs((stats['winning_trades'] * stats['avg_win']) /
                                             (stats['losing_trades'] * stats['avg_loss']))
             else:

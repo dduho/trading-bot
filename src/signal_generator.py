@@ -31,7 +31,14 @@ class SignalGenerator:
         Args:
             config: Configuration with strategy parameters
         """
-        self.config = config or self._default_config()
+        # Fusionner la config fournie avec les valeurs par défaut
+        default = self._default_config()
+        if config:
+            default.update(config)
+            # Fusionner aussi les weights si présents
+            if 'weights' in config:
+                default['weights'].update(config['weights'])
+        self.config = default
         self.signal_history = []
 
     def _default_config(self) -> Dict:

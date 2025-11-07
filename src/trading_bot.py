@@ -8,12 +8,11 @@ import yaml
 import os
 import sys
 
-# Fix encoding AVANT tout le reste pour Windows
+# Fix encoding pour Windows - SIMPLIFIE
 if sys.platform == 'win32':
-    import codecs
-    # Forcer UTF-8 pour stdout et stderr
-    sys.stdout = codecs.getwriter('utf-8')(sys.stdout.buffer, errors='replace')
-    sys.stderr = codecs.getwriter('utf-8')(sys.stderr.buffer, errors='replace')
+    # Ignorer les erreurs d'encodage plutôt que de crasher
+    import warnings
+    warnings.filterwarnings('ignore', category=UnicodeWarning)
 
 from datetime import datetime
 from typing import Dict, List
@@ -33,22 +32,15 @@ from learning_engine import AdaptiveLearningEngine
 # Initialize colorama for colored output
 init(autoreset=True)
 
-# Setup logging avec UTF-8
+# Setup logging - SIMPLIFIE
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    encoding='utf-8',
-    errors='replace',
     handlers=[
-        logging.FileHandler('trading_bot.log', encoding='utf-8', errors='replace'),
+        logging.FileHandler('trading_bot.log', encoding='utf-8', errors='ignore'),
         logging.StreamHandler()
     ]
 )
-
-# Forcer UTF-8 sur le StreamHandler aussi
-for handler in logging.root.handlers:
-    if isinstance(handler, logging.StreamHandler):
-        handler.stream = codecs.getwriter('utf-8')(handler.stream.buffer, errors='replace')
 
 logger = logging.getLogger(__name__)
 
@@ -117,7 +109,8 @@ class TradingBot:
         # Trading state
         self.symbols = self.config.get('symbols', ['BTC/USDT'])
         self.timeframe = os.getenv('TIMEFRAME', '1m')
-        self.update_interval = self._timeframe_to_seconds(self.timeframe)
+        # Intervalle de scan rapide pour trading actif (15 secondes)
+        self.update_interval = int(os.getenv('UPDATE_INTERVAL', '15'))
 
         # Get initial capital
         if self.trading_mode == TradingMode.PAPER:
@@ -572,9 +565,10 @@ class TradingBot:
                     self._print_status(analyses)
 
                 # Wait for next update
-                logger.debug(f"Iteration {iteration} complete, waiting {self.update_interval}s for next update...")
+                logger.info(f"✓ Iteration {iteration} complete, waiting {self.update_interval}s for next update...")
+                print(f"\n{Fore.CYAN}⏱️  Waiting {self.update_interval}s until next market scan...{Style.RESET_ALL}")
                 await asyncio.sleep(self.update_interval)
-                logger.debug(f"Woke up from sleep, starting iteration {iteration + 1}")
+                logger.info(f"⏰ Woke up from sleep, starting iteration {iteration + 1}")
 
             except KeyboardInterrupt:
                 logger.info("Received keyboard interrupt")
@@ -583,7 +577,7 @@ class TradingBot:
                 logger.error(f"Error in main loop: {e}", exc_info=True)
                 await asyncio.sleep(5)
 
-        logger.info(f"Trading bot stopped - self.running = {self.running}")
+        logger.info(f"⚠️ LOOP ENDED - Trading bot stopped - self.running = {self.running}")
 
     def start(self):
         """Start the trading bot"""
