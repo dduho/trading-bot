@@ -75,16 +75,32 @@ All 3 ML recommendations have been successfully applied to [config.yaml](config.
 **Change:** `auto_apply_adaptations: false` → `true`
 
 **What this means:**
-- ML will automatically apply optimizations every 24 hours
+- ML will automatically apply optimizations every 12 hours
 - No more manual intervention needed for strategy improvements
 - System continuously self-improves based on performance data
 - Adaptations are logged in database for tracking
 
 **Safety:**
 - Adaptation mode set to `moderate` (not aggressive)
-- Learning interval: 24 hours (stable, not reactive)
+- Learning interval: 12 hours (optimal balance: stable yet reactive)
 - Minimum 50 trades required before adaptations
 - All changes are logged and can be reviewed
+
+### 5. ✅ Learning Interval OPTIMIZED
+
+**Change:** `learning_interval_hours: 24` → `12`
+
+**What this means:**
+- 2 ML optimization cycles per day instead of 1
+- 2x more reactive to market changes
+- Each cycle analyzes ~15 new trades (statistically sufficient)
+- Perfect alignment with MODERATE adaptation mode
+
+**Why 12h is optimal:**
+- 24h = Too slow for MODERATE mode (better for CONSERVATIVE)
+- 12h = Perfect balance for MODERATE (enough data + good reactivity)
+- 8h = Too reactive for MODERATE (better for AGGRESSIVE)
+- 6h = Too few trades per cycle (risky)
 
 ---
 
@@ -94,11 +110,14 @@ All 3 ML recommendations have been successfully applied to [config.yaml](config.
 
 | Parameter | OLD Value | NEW Value | Reason |
 |-----------|-----------|-----------|--------|
-| **learning_interval_hours** | 2 | **24** | More stable, less reactive |
+| **learning_interval_hours** | 2 | **12** | Optimal for MODERATE mode |
 | **min_trades_for_learning** | 30 | **50** | Better statistical reliability |
 | **adaptation_aggressiveness** | aggressive | **moderate** | Balanced approach |
 
-**Rationale:** Previous settings were too aggressive (2-hour intervals, only 30 trades). New settings provide more stable, reliable adaptations.
+**Rationale:**
+- Previous settings were too aggressive (2-hour intervals)
+- 24h would be too slow for MODERATE mode
+- **12h is the perfect balance**: 2 cycles/day, 15 trades/cycle, maintains stability while being 2x more reactive than 24h
 
 ---
 

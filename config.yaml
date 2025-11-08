@@ -74,7 +74,7 @@ execution:
 # Adaptive Learning System
 learning:
   enabled: true  # Enable/disable learning system
-  learning_interval_hours: 24  # Learning cycle every 24 hours (more stable)
+  learning_interval_hours: 12  # Learning cycle every 12 hours (optimal for MODERATE mode)
   min_trades_for_learning: 50  # Minimum trades needed for reliable ML training
   adaptation_aggressiveness: moderate  # Balanced adaptation mode (conservative/moderate/aggressive)
   auto_apply_adaptations: true  # ML ENABLED: Auto-apply learned improvements
