@@ -296,17 +296,36 @@ class SignalGenerator:
             elif analysis['signal'] in [Signal.SELL, Signal.STRONG_SELL]:
                 sell_score += score
 
-        # Determine final signal
+        # Determine final signal with anti-trend low-confidence filter
         confidence = max(buy_score, sell_score)
         min_confidence = self.config['min_confidence']
+        anti_cfg = self.config.get('anti_trend_filter', {})
+        anti_enabled = anti_cfg.get('enabled', False)
+        extra_margin = float(anti_cfg.get('extra_conf_margin', 0.0))
 
-        if buy_score > sell_score and confidence >= min_confidence:
+        # Identify prevailing trend from analysis
+        prevailing_trend = analyses.get('trend', {}).get('reason', '')
+        is_uptrend = 'uptrend' in prevailing_trend.lower()
+        is_downtrend = 'downtrend' in prevailing_trend.lower()
+
+        # Apply anti-trend margin when action goes against trend
+        required_conf_buy = min_confidence
+        required_conf_sell = min_confidence
+        if anti_enabled:
+            if is_uptrend:
+                # Penalize SELLs against uptrend
+                required_conf_sell = min_confidence + extra_margin
+            elif is_downtrend:
+                # Penalize BUYs against downtrend
+                required_conf_buy = min_confidence + extra_margin
+
+        if buy_score > sell_score and confidence >= required_conf_buy:
             if confidence > 0.8:
                 signal = Signal.STRONG_BUY
             else:
                 signal = Signal.BUY
             action = 'BUY'
-        elif sell_score > buy_score and confidence >= min_confidence:
+        elif sell_score > buy_score and confidence >= required_conf_sell:
             if confidence > 0.8:
                 signal = Signal.STRONG_SELL
             else:

@@ -291,15 +291,27 @@ class MLOptimizer:
             'high_volume': 1 if market_conditions.get('volume_ratio', 1) > 1.5 else 0,
         }
 
-        # Ensure all features are present in correct order
-        feature_vector = [features.get(fname, 0) for fname in self.feature_names]
-        X = np.array([feature_vector])
+        # Ensure feature_names are known; align with scaler feature names if needed
+        if not self.feature_names and hasattr(self.scaler, 'feature_names_in_'):
+            try:
+                self.feature_names = list(self.scaler.feature_names_in_)
+            except Exception:
+                # Fallback: keep current inferred order from features dict
+                self.feature_names = list(features.keys())
 
-        # Scale and predict
-        X_scaled = self.scaler.transform(X)
+        # Build a DataFrame with the exact columns used during fitting to avoid warnings
+        # Fill missing required columns with 0
+        row = {name: features.get(name, 0) for name in self.feature_names}
+        X_df = pd.DataFrame([row], columns=self.feature_names)
+
+        # Scale and predict using DataFrame (preserves feature names)
+        X_scaled = self.scaler.transform(X_df)
         proba = self.model.predict_proba(X_scaled)[0]
 
         success_prob = proba[1]  # Probability of class 1 (success)
+
+        if os.getenv('LOG_ML_FEATURES', '0') == '1':
+            logger.info(f"ML Predict features: {row} => success_prob={success_prob:.3f} proba={proba}")
 
         return {
             'success_probability': float(success_prob),
@@ -457,3 +469,8 @@ class MLOptimizer:
             'most_important_feature': top_features[0][0] if top_features else None,
             'total_features': len(self.feature_names)
         }
+
+# Added for PowerShell execution
+if __name__ == "__main__":
+    import os
+    os.environ['FORCE_LEARNING'] = '1'

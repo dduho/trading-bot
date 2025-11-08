@@ -5,7 +5,7 @@ Manages position sizing, stop loss, take profit, and overall risk
 
 import pandas as pd
 import numpy as np
-from typing import Dict, Optional, List
+from typing import Dict, Optional, List, Tuple
 from datetime import datetime, timedelta
 import logging
 
@@ -102,6 +102,7 @@ class RiskManager:
         self.daily_pnl = 0
         self.daily_trades = 0
         self.last_reset = datetime.now().date()
+        self.last_trade_time: Dict[str, datetime] = {}  # Per-symbol cooldown tracking
 
     def _default_config(self) -> Dict:
         """Default risk configuration"""
@@ -225,6 +226,13 @@ class RiskManager:
         if symbol in self.positions:
             return False, f"Position already open for {symbol}"
 
+        # Cooldown check
+        cooldown = self.config.get('cooldown_seconds')
+        if cooldown and symbol in self.last_trade_time:
+            elapsed = (datetime.now() - self.last_trade_time[symbol]).total_seconds()
+            if elapsed < cooldown:
+                return False, f"Cooldown active ({int(cooldown - elapsed)}s remaining)"
+
         # Check max open positions
         if len(self.positions) >= self.config['max_open_positions']:
             return False, f"Maximum open positions reached ({self.config['max_open_positions']})"
@@ -265,6 +273,7 @@ class RiskManager:
 
         self.positions[symbol] = position
         self.daily_trades += 1
+        self.last_trade_time[symbol] = datetime.now()
 
         logger.info(f"Opened {side} position: {symbol} @ {entry_price} (qty: {quantity})")
         return position
@@ -286,6 +295,8 @@ class RiskManager:
         self.daily_pnl += position.pnl
         self.closed_positions.append(position)
         del self.positions[symbol]
+        # Record last trade action time for cooldown logic
+        self.last_trade_time[symbol] = datetime.now()
 
         logger.info(f"Closed position: {symbol} @ {exit_price} | PnL: ${position.pnl:.2f} | Reason: {reason}")
         return position

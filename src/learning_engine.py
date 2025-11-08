@@ -58,8 +58,22 @@ class AdaptiveLearningEngine:
         if not self.learning_enabled:
             return False
 
+        # Forced trigger via ENV (FORCE_LEARNING=1) bypasses checks once per process start
+        if os.getenv('FORCE_LEARNING', '0') == '1' and self.last_learning_update is None:
+            logger.info("Force learning trigger requested by environment variable FORCE_LEARNING=1")
+            return True
+
         # Check if enough time has passed
         if self.last_learning_update is None:
+            # Skip initial learning cycle if we don't have enough trades yet
+            stats = self.db.get_performance_stats(days=7)
+            if stats['total_trades'] < self.min_trades_for_learning:
+                logger.info(
+                    f"Skipping initial learning cycle - only {stats['total_trades']} trades (< {self.min_trades_for_learning})"
+                )
+                # Mark a timestamp so we wait full interval before next attempt
+                self.last_learning_update = datetime.now()
+                return False
             return True
 
         time_since_last = datetime.now() - self.last_learning_update

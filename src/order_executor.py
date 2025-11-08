@@ -293,14 +293,16 @@ class OrderExecutor:
             self.paper_balance[base_currency] = self.paper_balance.get(base_currency, 0) + amount
 
         else:  # sell
-            # Check if we have enough base currency
-            if self.paper_balance.get(base_currency, 0) < amount:
+            # Allow synthetic shorts in PAPER mode by permitting negative base balance
+            allow_shorts = True
+            base_available = self.paper_balance.get(base_currency, 0)
+            if base_available < amount and not allow_shorts:
                 logger.error(f"❌ Insufficient paper balance: need {amount} {base_currency}")
                 return None
 
-            # Update balances
+            # Update balances (may go negative on base for shorts)
             cost = amount * execution_price
-            self.paper_balance[base_currency] = self.paper_balance.get(base_currency, 0) - amount
+            self.paper_balance[base_currency] = base_available - amount
             self.paper_balance[quote_currency] = self.paper_balance.get(quote_currency, 0) + cost
 
         # Create order dict

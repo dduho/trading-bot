@@ -95,6 +95,10 @@ class TradingBot:
             'adaptation_aggressiveness': 'moderate',
             'auto_apply_adaptations': False
         })
+        # Ensure learning engine sees the same strategy parameters used by SignalGenerator
+        # so it reports consistent min_confidence and weights
+        if 'strategy' in self.config:
+            learning_config = {**learning_config, 'strategy': self.config.get('strategy', {})}
 
         self.trade_db = TradeDatabase()
         self.perf_analyzer = PerformanceAnalyzer(self.trade_db)
@@ -265,6 +269,38 @@ class TradingBot:
         can_open, reason = self.risk_manager.can_open_position(symbol)
 
         # BUY signal
+        # If a SHORT is open for this symbol, close it on BUY
+        if signal['action'] == 'BUY' and symbol in self.risk_manager.positions:
+            existing = self.risk_manager.positions[symbol]
+            if existing.side == 'short':
+                # Buy to cover
+                order = None
+                order_type = self.config.get('execution', {}).get('order_type', 'market')
+                if order_type == 'market':
+                    order = self.executor.create_market_order(symbol, 'buy', existing.quantity)
+                else:
+                    order = self.executor.create_limit_order(symbol, 'buy', existing.quantity, price)
+
+                if order:
+                    actual_price = order.get('price', price)
+                    closed = self.risk_manager.close_position(symbol, actual_price, "Signal: BUY (close short)")
+                    if closed:
+                        self._print_close(symbol, actual_price, closed.pnl, "BUY Signal (close short)")
+
+                        if hasattr(existing, 'trade_id'):
+                            duration_minutes = (datetime.now() - closed.entry_time).total_seconds() / 60
+                            pnl_percent = (closed.pnl / (closed.entry_price * closed.quantity)) * 100 if closed.entry_price * closed.quantity != 0 else 0
+                            self.trade_db.update_trade(existing.trade_id, {
+                                'exit_price': actual_price,
+                                'exit_time': datetime.now(),
+                                'pnl': closed.pnl,
+                                'pnl_percent': pnl_percent,
+                                'status': 'closed',
+                                'exit_reason': 'Signal: BUY (close short)',
+                                'duration_minutes': duration_minutes
+                            })
+                return
+
         if signal['action'] == 'BUY' and can_open:
             # Calculate position parameters
             atr = analysis['dataframe']['atr'].iloc[-1] if 'atr' in analysis['dataframe'].columns else None
@@ -353,11 +389,16 @@ class TradingBot:
             else:
                 logger.error(f"Failed to execute BUY order for {symbol}")
 
-        # SELL signal - close existing position
+        # SELL signal - close existing LONG; maintain SHORTs (opened on SELL)
         elif signal['action'] == 'SELL' and symbol in self.risk_manager.positions:
             position = self.risk_manager.positions[symbol]
 
-            # Execute the SELL order
+            # If we are LONG, SELL to close. If already SHORT, maintain position on SELL.
+            if position.side == 'short':
+                logger.info(f"Maintaining existing SHORT on {symbol}; SELL signal reaffirmed.")
+                return
+
+            # Execute the SELL order to close LONG
             order = None
             order_type = self.config.get('execution', {}).get('order_type', 'market')
 
@@ -376,14 +417,15 @@ class TradingBot:
                         self.executor.cancel_order(open_order['id'], symbol)
 
                 # Close position tracking
-                closed = self.risk_manager.close_position(symbol, actual_price, "Signal: SELL")
+                closed = self.risk_manager.close_position(symbol, actual_price, "Signal: SELL (close long)")
                 if closed:
-                    self._print_close(symbol, actual_price, closed.pnl, "SELL Signal")
+                    self._print_close(symbol, actual_price, closed.pnl, "SELL Signal (close long)")
 
                     # Update trade in database
                     if hasattr(position, 'trade_id'):
                         duration_minutes = (datetime.now() - closed.entry_time).total_seconds() / 60
-                        pnl_percent = (closed.pnl / (closed.entry_price * closed.quantity)) * 100
+                        denom = (closed.entry_price * closed.quantity)
+                        pnl_percent = (closed.pnl / denom * 100) if denom else 0
 
                         self.trade_db.update_trade(position.trade_id, {
                             'exit_price': actual_price,
@@ -391,11 +433,82 @@ class TradingBot:
                             'pnl': closed.pnl,
                             'pnl_percent': pnl_percent,
                             'status': 'closed',
-                            'exit_reason': 'Signal: SELL',
+                            'exit_reason': 'Signal: SELL (close long)',
                             'duration_minutes': duration_minutes
                         })
             else:
                 logger.error(f"Failed to execute SELL order for {symbol}")
+
+        # If SELL and no position open, open SHORT (paper synthetic)
+        elif signal['action'] == 'SELL' and can_open:
+            # Calculate position parameters for short
+            atr = analysis['dataframe']['atr'].iloc[-1] if 'atr' in analysis['dataframe'].columns else None
+            stop_loss = self.risk_manager.calculate_stop_loss(price, 'short', atr)
+            take_profit = self.risk_manager.calculate_take_profit(price, stop_loss, 'short')
+
+            quantity = self.risk_manager.calculate_position_size(
+                capital=self.capital,
+                risk_percent=self.config['risk']['stop_loss_percent'],
+                entry_price=price,
+                stop_loss=stop_loss
+            )
+
+            is_valid, error_msg = self.executor.validate_order(symbol, 'sell', quantity, price)
+            if not is_valid:
+                logger.warning(f"Order validation failed (short): {error_msg}")
+                return
+
+            order = None
+            order_type = self.config.get('execution', {}).get('order_type', 'market')
+            if order_type == 'market':
+                order = self.executor.create_market_order(symbol, 'sell', quantity)
+            else:
+                order = self.executor.create_limit_order(symbol, 'sell', quantity, price)
+
+            if order:
+                actual_price = order.get('price', price)
+                position = self.risk_manager.open_position(
+                    symbol=symbol,
+                    side='short',
+                    entry_price=actual_price,
+                    quantity=quantity,
+                    stop_loss=stop_loss,
+                    take_profit=take_profit
+                )
+
+                if position:
+                    self._print_trade(
+                        "SELL",
+                        symbol,
+                        actual_price,
+                        quantity,
+                        signal['confidence'],
+                        signal['reason'],
+                        stop_loss,
+                        take_profit
+                    )
+
+                    trade_id = self.trade_db.insert_trade({
+                        'symbol': symbol,
+                        'side': 'short',
+                        'entry_price': actual_price,
+                        'quantity': quantity,
+                        'stop_loss': stop_loss,
+                        'take_profit': take_profit,
+                        'entry_time': datetime.now(),
+                        'status': 'open',
+                        'trading_mode': self.trading_mode.value
+                    })
+
+                    if 'market_conditions' in analysis:
+                        conditions = analysis['market_conditions'].copy()
+                        conditions['timestamp'] = datetime.now()
+                        conditions['signal_reason'] = signal['reason']
+                        self.trade_db.insert_trade_conditions(trade_id, conditions)
+
+                    position.trade_id = trade_id
+            else:
+                logger.error(f"Failed to execute SHORT SELL order for {symbol}")
 
     def update_positions(self):
         """Update all open positions and check stops"""
@@ -516,9 +629,14 @@ class TradingBot:
 
         # Print learning system status
         learning_params = self.learning_engine.get_current_strategy_params()
+        effective_min_conf = self.signal_generator.config.get('min_confidence', learning_params['min_confidence'])
+        effective_weights = self.signal_generator.config.get('weights', learning_params['weights'])
         print(f"{Fore.MAGENTA}Learning System: {'ENABLED' if learning_params['learning_enabled'] else 'DISABLED'}{Style.RESET_ALL}")
-        print(f"Current Weights: {learning_params['weights']}")
-        print(f"Min Confidence: {learning_params['min_confidence']}\n")
+        print(f"Current Weights: {effective_weights}")
+        print(f"Min Confidence (effective): {effective_min_conf}\n")
+
+        if os.getenv('FORCE_LEARNING', '0') == '1':
+            print(f"{Fore.MAGENTA}FORCE_LEARNING active - learning cycle will run immediately if conditions allow.{Style.RESET_ALL}\n")
 
         iteration = 0
         while self.running:
@@ -559,6 +677,39 @@ class TradingBot:
 
                 # Update existing positions
                 self.update_positions()
+
+                # Per-iteration concise status line (open positions, daily trades, unrealized PnL, ML readiness)
+                try:
+                    current_prices = {a['symbol']: a['price'] for a in analyses if a}
+                    portfolio = self.risk_manager.get_portfolio_summary(current_prices)
+                    perf_stats = self.trade_db.get_performance_stats(days=30)
+                    ml_needed = getattr(self.learning_engine, 'min_trades_for_learning', 30)
+                    print(
+                        f"Status: open={portfolio['open_positions']} | daily_trades={portfolio['daily_trades']} | "
+                        f"unrealizedPnL=${portfolio['unrealized_pnl']:.2f} | closed_trades={perf_stats['total_trades']}/{ml_needed} for ML"
+                    )
+
+                    # Also print a compact per-symbol signal snapshot to show evolution
+                    if analyses:
+                        snapshots = []
+                        for a in analyses:
+                            sig = a['signal']
+                            snapshots.append(
+                                f"{a['symbol']}: {sig['action']} {sig['confidence']:.0%}"
+                            )
+                        print("Signals: " + " | ".join(snapshots))
+
+                    # Periodic performance report every 100 trades
+                    if perf_stats['total_trades'] > 0 and perf_stats['total_trades'] % 100 == 0:
+                        try:
+                            print("\n=== Performance Snapshot (every 100 trades) ===")
+                            perf_report = self.perf_analyzer.generate_performance_report()
+                            print(perf_report)
+                        except Exception:
+                            pass
+                except Exception as _:
+                    # Non-fatal
+                    pass
 
                 # Print status every 10 iterations
                 if iteration % 10 == 0:

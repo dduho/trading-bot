@@ -40,26 +40,31 @@ indicators:
 # Trading strategy
 strategy:
   name: "Multi-Indicator Strategy"
-  min_confidence: 0.15  # TRÈS AGRESSIF - Mode apprentissage rapide paper trading
+  min_confidence: 0.60  # ML recommended: increased from 0.14 for better selectivity
 
-  # Signal weights (must sum to 1.0)
+  # Signal weights optimized by ML (based on feature importance and performance analysis)
   weights:
-    rsi: 0.35           # Augmenté pour plus de réactivité
-    macd: 0.30
-    moving_averages: 0.15
-    volume: 0.10
-    trend: 0.10
+    rsi: 0.1771          # ML optimized: RSI importance
+    macd: 0.2116         # ML optimized: MACD importance (includes macd_hist)
+    moving_averages: 0.3305  # ML optimized: MA crossover is most important feature!
+    volume: 0.1752       # ML optimized: Volume ratio importance
+    trend: 0.1057        # ML optimized: Trend indicator importance
+
+  anti_trend_filter:
+    enabled: true
+    extra_conf_margin: 0.02  # Exige (min_confidence + marge) si signal va contre la tendance
 
 # Risk management
 risk:
-  max_position_size_percent: 5   # 5% par position pour plus de trades
-  stop_loss_percent: 2.0          # Stop loss normal
-  take_profit_percent: 4.0        # Take profit réduit pour sorties plus rapides
+  max_position_size_percent: 5    # 5% par position (inchangé)
+  stop_loss_percent: 2.0          # Stop loss at 2%
+  take_profit_percent: 6.0        # ML recommended: increased from 4.0 to 6.0 (3:1 ratio)
   trailing_stop_percent: 1.5
-  risk_reward_ratio: 2.0          # Ratio risque/récompense (1:2)
-  max_open_positions: 8           # 8 positions max pour plus de diversification
-  max_daily_trades: 100           # 100 trades/jour pour apprentissage ultra-rapide
+  risk_reward_ratio: 3.0          # ML recommended: increased from 2.0 to 3.0 (target 2.0 min)
+  max_open_positions: 3           # Reduced for better focus with higher confidence
+  max_daily_trades: 30            # Reduced - quality over quantity with ML filtering
   max_daily_loss_percent: 5.0
+  cooldown_seconds: 120           # Increased cooldown for better trade spacing
 
 # Execution settings
 execution:
@@ -69,10 +74,10 @@ execution:
 # Adaptive Learning System
 learning:
   enabled: true  # Enable/disable learning system
-  learning_interval_hours: 12  # Réduit à 12h pour apprentissage plus fréquent. défaut 24h
-  min_trades_for_learning: 30  # Réduit de 50 à 30 trades pour démarrer plus vite. défaut 50
-  adaptation_aggressiveness: aggressive  # Mode agressif pour apprentissage rapide. options: conservative, moderate, aggressive
-  auto_apply_adaptations: false  # Auto-apply learned improvements (false = manual review)
+  learning_interval_hours: 24  # Learning cycle every 24 hours (more stable)
+  min_trades_for_learning: 50  # Minimum trades needed for reliable ML training
+  adaptation_aggressiveness: moderate  # Balanced adaptation mode (conservative/moderate/aggressive)
+  auto_apply_adaptations: true  # ML ENABLED: Auto-apply learned improvements
 
   # ML Model settings
   ml_model:
