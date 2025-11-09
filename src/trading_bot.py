@@ -28,6 +28,7 @@ from trade_database import TradeDatabase
 from performance_analyzer import PerformanceAnalyzer
 from ml_optimizer import MLOptimizer
 from learning_engine import AdaptiveLearningEngine
+from telegram_notifier import TelegramNotifier
 
 # Initialize colorama for colored output
 init(autoreset=True)
@@ -109,6 +110,18 @@ class TradingBot:
             self.ml_optimizer,
             learning_config
         )
+
+        # Initialize Telegram notifications
+        try:
+            if self.config.get('notifications', {}).get('telegram', {}).get('enabled', False):
+                self.telegram = TelegramNotifier(self.config)
+                logger.info("Telegram notifications enabled")
+            else:
+                self.telegram = None
+                logger.info("Telegram notifications disabled")
+        except Exception as e:
+            logger.warning(f"Failed to initialize Telegram notifications: {e}")
+            self.telegram = None
 
         # Trading state
         self.symbols = self.config.get('symbols', ['BTC/USDT'])
@@ -378,6 +391,32 @@ class TradingBot:
                     # Store trade_id in position for later updates
                     position.trade_id = trade_id
 
+                    # Send Telegram notification for position opened
+                    if self.telegram:
+                        try:
+                            asyncio.create_task(self.telegram.send_trade_notification(
+                                action='OPEN',
+                                symbol=symbol,
+                                side='BUY',
+                                entry_price=actual_price,
+                                quantity=quantity,
+                                position_value=actual_price * quantity,
+                                stop_loss=stop_loss,
+                                take_profit=take_profit,
+                                signal_data={
+                                    'confidence': signal['confidence'],
+                                    'action': signal['action'],
+                                    'rsi': analysis.get('market_conditions', {}).get('rsi'),
+                                    'macd': analysis.get('market_conditions', {}).get('macd'),
+                                    'ema': analysis.get('market_conditions', {}).get('ema_short'),
+                                    'sma': analysis.get('market_conditions', {}).get('sma_short'),
+                                    'volume_change': analysis.get('market_conditions', {}).get('volume_ratio', 0) * 100 - 100
+                                },
+                                portfolio_info=self._get_portfolio_info()
+                            ))
+                        except Exception as e:
+                            logger.error(f"Failed to send Telegram notification: {e}")
+
                     # Place stop loss and take profit orders (if not paper mode)
                     if self.trading_mode != TradingMode.PAPER:
                         # Stop loss order
@@ -436,6 +475,25 @@ class TradingBot:
                             'exit_reason': 'Signal: SELL (close long)',
                             'duration_minutes': duration_minutes
                         })
+
+                        # Send Telegram notification for position closed
+                        if self.telegram:
+                            try:
+                                asyncio.create_task(self.telegram.send_trade_notification(
+                                    action='CLOSE',
+                                    symbol=symbol,
+                                    side='SELL',
+                                    entry_price=closed.entry_price,
+                                    exit_price=actual_price,
+                                    quantity=closed.quantity,
+                                    pnl=closed.pnl,
+                                    pnl_percent=pnl_percent,
+                                    duration=self._format_duration(duration_minutes),
+                                    reason='Signal: SELL (close long)',
+                                    portfolio_info=self._get_portfolio_info()
+                                ))
+                            except Exception as e:
+                                logger.error(f"Failed to send Telegram notification: {e}")
             else:
                 logger.error(f"Failed to execute SELL order for {symbol}")
 
@@ -549,6 +607,25 @@ class TradingBot:
                     'duration_minutes': duration_minutes
                 })
 
+                # Send Telegram notification for position closed (SL/TP)
+                if self.telegram:
+                    try:
+                        asyncio.create_task(self.telegram.send_trade_notification(
+                            action='CLOSE',
+                            symbol=pos['symbol'],
+                            side='SELL' if pos['side'] == 'long' else 'BUY',
+                            entry_price=pos['entry_price'],
+                            exit_price=pos['exit_price'],
+                            quantity=pos['quantity'],
+                            pnl=pos['pnl'],
+                            pnl_percent=pnl_percent,
+                            duration=self._format_duration(duration_minutes),
+                            reason='Stop/Target Hit',
+                            portfolio_info=self._get_portfolio_info()
+                        ))
+                    except Exception as e:
+                        logger.error(f"Failed to send Telegram notification: {e}")
+
     def _print_trade(self, action: str, symbol: str, price: float,
                     quantity: float, confidence: float, reason: str,
                     stop_loss: float = None, take_profit: float = None):
@@ -638,6 +715,23 @@ class TradingBot:
         if os.getenv('FORCE_LEARNING', '0') == '1':
             print(f"{Fore.MAGENTA}FORCE_LEARNING active - learning cycle will run immediately if conditions allow.{Style.RESET_ALL}\n")
 
+        # Send startup notification via Telegram
+        if self.telegram:
+            try:
+                learning_status = "Activé (cycles toutes les 2h)" if learning_params['learning_enabled'] else "Désactivé"
+                await self.telegram.send_info_notification(
+                    f"🤖 *Bot Démarré avec Succès*\n\n"
+                    f"*Mode:* {self.trading_mode.value.upper()}\n"
+                    f"*Symboles:* {', '.join(self.symbols)}\n"
+                    f"*Timeframe:* {self.timeframe}\n"
+                    f"*Scan toutes les:* {self.update_interval}s\n"
+                    f"*ML Learning:* {learning_status}\n"
+                    f"*Notifications:* Activées\n\n"
+                    f"Portfolio: ${self.capital:.2f} USDT"
+                )
+            except Exception as e:
+                logger.error(f"Failed to send startup notification: {e}")
+
         iteration = 0
         while self.running:
             try:
@@ -662,6 +756,20 @@ class TradingBot:
                         # Print performance report
                         perf_report = self.perf_analyzer.generate_performance_report()
                         print(perf_report)
+
+                        # Send Telegram notification for learning cycle
+                        if self.telegram:
+                            try:
+                                asyncio.create_task(self.telegram.send_learning_notification(
+                                    duration=learning_results.get('duration', 0),
+                                    trades_analyzed=learning_results.get('trades_analyzed', 0),
+                                    model_metrics=learning_results.get('model_metrics', {}),
+                                    weight_changes=learning_results.get('weight_changes', {}),
+                                    adaptations=learning_results.get('adaptations', []),
+                                    performance=learning_results.get('performance_stats', {})
+                                ))
+                            except Exception as e:
+                                logger.error(f"Failed to send Telegram notification: {e}")
                     else:
                         logger.warning(f"Learning cycle had errors: {learning_results.get('errors')}")
 
@@ -723,9 +831,31 @@ class TradingBot:
 
             except KeyboardInterrupt:
                 logger.info("Received keyboard interrupt")
+                # Send shutdown notification
+                if self.telegram:
+                    try:
+                        await self.telegram.send_info_notification(
+                            "🛑 *Bot Arrêté Manuellement*\n\n"
+                            f"Arrêt demandé par l'utilisateur (Ctrl+C)\n"
+                            f"Itérations complétées: {iteration}"
+                        )
+                    except Exception:
+                        pass
                 break
             except Exception as e:
                 logger.error(f"Error in main loop: {e}", exc_info=True)
+                # Send error notification
+                if self.telegram:
+                    try:
+                        await self.telegram.send_error_notification(
+                            module='TradingBot.run_loop',
+                            error_type=type(e).__name__,
+                            error_message=str(e),
+                            severity='critical',
+                            context={'iteration': iteration}
+                        )
+                    except Exception:
+                        pass
                 await asyncio.sleep(5)
 
         logger.info(f"⚠️ LOOP ENDED - Trading bot stopped - self.running = {self.running}")
@@ -784,6 +914,51 @@ class TradingBot:
             logger.info("Database connection closed")
         except Exception as e:
             logger.error(f"Error closing database: {e}")
+
+    def _get_portfolio_info(self) -> Dict:
+        """Get current portfolio information for notifications"""
+        try:
+            current_prices = {}
+            for symbol in self.symbols:
+                ticker = self.market_feed.get_ticker(symbol)
+                if ticker:
+                    current_prices[symbol] = ticker['last']
+            
+            portfolio = self.risk_manager.get_portfolio_summary(current_prices)
+            
+            return {
+                'balance': self.capital,
+                'open_positions': portfolio.get('open_positions', 0),
+                'max_positions': self.config.get('risk', {}).get('max_open_positions', 3),
+                'daily_trades': portfolio.get('daily_trades', 0),
+                'unrealized_pnl': portfolio.get('unrealized_pnl', 0),
+                'total_pnl': portfolio.get('total_pnl', 0),
+                'total_pnl_percent': (portfolio.get('total_pnl', 0) / self.capital * 100) if self.capital > 0 else 0
+            }
+        except Exception as e:
+            logger.error(f"Error getting portfolio info: {e}")
+            return {
+                'balance': self.capital,
+                'open_positions': 0,
+                'max_positions': 3,
+                'daily_trades': 0,
+                'unrealized_pnl': 0,
+                'total_pnl': 0,
+                'total_pnl_percent': 0
+            }
+
+    def _format_duration(self, minutes: float) -> str:
+        """Format duration in minutes to human-readable string"""
+        if minutes < 60:
+            return f"{int(minutes)}min"
+        elif minutes < 1440:  # Less than 24 hours
+            hours = int(minutes / 60)
+            mins = int(minutes % 60)
+            return f"{hours}h {mins}min"
+        else:
+            days = int(minutes / 1440)
+            hours = int((minutes % 1440) / 60)
+            return f"{days}j {hours}h"
 
 
 def main():
