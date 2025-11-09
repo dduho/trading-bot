@@ -71,25 +71,34 @@ execution:
   order_type: limit  # market or limit
   slippage_tolerance: 0.5  # % tolerance for price slippage
 
-# Adaptive Learning System
+# Adaptive Learning System - CONTINUOUS LEARNING MODE
 learning:
   enabled: true  # Enable/disable learning system
-  learning_interval_hours: 12  # Learning cycle every 12 hours (optimal for MODERATE mode)
-  min_trades_for_learning: 50  # Minimum trades needed for reliable ML training
-  adaptation_aggressiveness: moderate  # Balanced adaptation mode (conservative/moderate/aggressive)
+  learning_interval_hours: 2  # OPTIMIZED: Learning cycle every 2 hours (apprentissage continu)
+  min_trades_for_learning: 10  # REDUCED: Only 10 trades needed (apprentissage plus rapide)
+  adaptation_aggressiveness: aggressive  # AGGRESSIVE: Adaptations rapides et fréquentes
   auto_apply_adaptations: true  # ML ENABLED: Auto-apply learned improvements
+  continuous_learning: true  # NEW: Mode apprentissage continu activé
 
   # ML Model settings
   ml_model:
     type: random_forest  # random_forest or gradient_boosting
-    retrain_interval_hours: 168  # Retrain model every week (168 hours)
-    min_accuracy_threshold: 0.60  # Minimum model accuracy to use predictions
+    retrain_interval_hours: 24  # OPTIMIZED: Retrain model every day (au lieu de 168h)
+    min_accuracy_threshold: 0.55  # LOWERED: Accept models with 55% accuracy (plus permissif)
+    incremental_learning: true  # NEW: Apprentissage incrémental (sans tout réentraîner)
+    auto_retrain_on_poor_performance: true  # NEW: Réentraînement automatique si performance baisse
 
   # Learning goals
   target_metrics:
     win_rate: 0.55  # Target 55% win rate
     profit_factor: 2.0  # Target profit factor
     sharpe_ratio: 1.5  # Target Sharpe ratio
+  
+  # Performance monitoring for continuous improvement
+  performance_monitoring:
+    check_interval_hours: 1  # NEW: Vérifier la performance toutes les heures
+    degradation_threshold: 0.05  # NEW: Si performance baisse de 5%, réapprendre
+    improvement_reward_multiplier: 1.2  # NEW: Favoriser les stratégies qui s'améliorent
 
 # Notifications (optional)
 notifications:
