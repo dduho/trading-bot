@@ -179,12 +179,28 @@ Voir [ML_CHANGES_APPLIED.md](ML_CHANGES_APPLIED.md) pour détails
 
 ## 🆘 Support
 
+### Problème "Out of capacity" ?
+
+**Erreur:** `Out of capacity for shape VM.Standard.xxx in availability domain AD-1`
+
+**Solutions:**
+1. **Désactive "Fault domain"** dans Placement (laisse sur "No preference")
+2. **Change de région** → [ORACLE_REGIONS_GUIDE.md](ORACLE_REGIONS_GUIDE.md)
+   - Recommandé: Germany Central (Frankfurt)
+   - 3 Availability Domains = plus de capacité
+3. **Essaye entre 2h-6h du matin** (heure de Paris)
+
+Guide complet: [ORACLE_REGIONS_GUIDE.md](ORACLE_REGIONS_GUIDE.md)
+
+---
+
 ### Problème de déploiement ?
 
 1. **Vérifier les guides :**
    - [ORACLE_SETUP_WITH_GITHUB.md](ORACLE_SETUP_WITH_GITHUB.md) - Avec GitHub
    - [QUICK_START_ORACLE.md](QUICK_START_ORACLE.md) - Sans GitHub
    - [ORACLE_CLOUD_SETUP_GUIDE.md](ORACLE_CLOUD_SETUP_GUIDE.md) - Guide complet détaillé
+   - [ORACLE_REGIONS_GUIDE.md](ORACLE_REGIONS_GUIDE.md) - Problèmes de capacité
 
 2. **Vérifier les logs :**
    ```bash
