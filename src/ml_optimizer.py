@@ -470,6 +470,80 @@ class MLOptimizer:
             'total_features': len(self.feature_names)
         }
 
+    def get_current_metrics(self) -> Dict[str, Any]:
+        """
+        Get current ML system metrics for display.
+        
+        Returns:
+            Dictionary with current metrics and parameters
+        """
+        # Get recent trades for metrics calculation
+        recent_trades = self.db.get_trades(limit=100)
+        closed_trades = [t for t in recent_trades if t.get('exit_time')]
+        
+        # Calculate basic metrics
+        total_trades = len(closed_trades)
+        if total_trades > 0:
+            winning_trades = len([t for t in closed_trades if t.get('pnl', 0) > 0])
+            win_rate = (winning_trades / total_trades * 100)
+            
+            # Calculate Sharpe ratio (simplified)
+            returns = [t.get('pnl_percent', 0) for t in closed_trades]
+            if returns and len(returns) > 1:
+                sharpe_ratio = (np.mean(returns) / np.std(returns)) if np.std(returns) > 0 else 0
+            else:
+                sharpe_ratio = 0
+            
+            # Model accuracy
+            accuracy = self.model.score(self.scaler.transform(
+                pd.DataFrame([self._extract_features(t) for t in closed_trades])
+            ), [1 if t.get('pnl', 0) > 0 else 0 for t in closed_trades]) * 100 if self.model and total_trades > 10 else 0
+        else:
+            win_rate = 0
+            sharpe_ratio = 0
+            accuracy = 0
+        
+        # Get learning cycles count from database
+        learning_cycles = 0
+        try:
+            perf_records = self.db.get_strategy_performance()
+            learning_cycles = len(perf_records)
+        except:
+            pass
+        
+        # Get current parameters (from database or defaults)
+        current_params = {
+            'rsi_period': 14,
+            'min_confidence': 0.6,
+            'stop_loss': 2.0,
+            'take_profit': 5.0
+        }
+        
+        # Last learning time
+        last_learning = "Jamais"
+        if learning_cycles > 0:
+            try:
+                latest_perf = self.db.get_strategy_performance(limit=1)
+                if latest_perf:
+                    timestamp = latest_perf[0].get('timestamp')
+                    if timestamp:
+                        last_learning = datetime.fromisoformat(timestamp).strftime("%d/%m/%Y %H:%M")
+            except:
+                pass
+        
+        return {
+            'accuracy': accuracy,
+            'win_rate': win_rate,
+            'sharpe_ratio': sharpe_ratio,
+            'total_trades': total_trades,
+            'learning_cycles': learning_cycles,
+            'rsi_period': current_params['rsi_period'],
+            'min_confidence': current_params['min_confidence'],
+            'stop_loss': current_params['stop_loss'],
+            'take_profit': current_params['take_profit'],
+            'last_learning': last_learning
+        }
+
 # Added for PowerShell execution
 if __name__ == "__main__":
     import os

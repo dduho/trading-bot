@@ -29,6 +29,7 @@ from performance_analyzer import PerformanceAnalyzer
 from ml_optimizer import MLOptimizer
 from learning_engine import AdaptiveLearningEngine
 from telegram_notifier import TelegramNotifier
+from telegram_commands import TelegramCommandHandler
 
 # Initialize colorama for colored output
 init(autoreset=True)
@@ -58,6 +59,7 @@ class TradingBot:
         """
         self.config = self._load_config(config_path)
         self.running = False
+        self.start_time = datetime.now()  # Pour calcul uptime
 
         # Get trading mode from environment
         mode_str = os.getenv('TRADING_MODE', 'paper').lower()
@@ -122,6 +124,15 @@ class TradingBot:
         except Exception as e:
             logger.warning(f"Failed to initialize Telegram notifications: {e}")
             self.telegram = None
+
+        # Initialize Telegram commands (interactive)
+        self.telegram_commands = None
+        try:
+            if self.config.get('notifications', {}).get('telegram', {}).get('enabled', False):
+                self.telegram_commands = TelegramCommandHandler(self.config, self)
+                logger.info("Telegram commands handler initialized")
+        except Exception as e:
+            logger.warning(f"Failed to initialize Telegram commands: {e}")
 
         # Trading state
         self.symbols = self.config.get('symbols', ['BTC/USDT'])
@@ -704,6 +715,14 @@ class TradingBot:
         print(f"Timeframe: {self.timeframe}")
         print(f"Update Interval: {self.update_interval}s\n")
 
+        # Start Telegram command handler
+        if self.telegram_commands:
+            try:
+                await self.telegram_commands.start()
+                logger.info("Telegram commands started")
+            except Exception as e:
+                logger.error(f"Failed to start Telegram commands: {e}")
+
         # Print learning system status
         learning_params = self.learning_engine.get_current_strategy_params()
         effective_min_conf = self.signal_generator.config.get('min_confidence', learning_params['min_confidence'])
@@ -873,6 +892,16 @@ class TradingBot:
     def stop(self):
         """Stop the trading bot"""
         self.running = False
+        
+        # Stop Telegram command handler
+        if self.telegram_commands:
+            try:
+                import asyncio
+                asyncio.create_task(self.telegram_commands.stop())
+                logger.info("Telegram commands stopped")
+            except Exception as e:
+                logger.error(f"Failed to stop Telegram commands: {e}")
+        
         print(f"\n{Fore.YELLOW}Trading Bot Stopped{Style.RESET_ALL}")
 
         # Print final statistics
