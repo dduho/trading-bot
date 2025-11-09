@@ -100,7 +100,41 @@ learning:
     degradation_threshold: 0.05  # NEW: Si performance baisse de 5%, réapprendre
     improvement_reward_multiplier: 1.2  # NEW: Favoriser les stratégies qui s'améliorent
 
-# Notifications (optional)
+# Telegram Notifications
 notifications:
-  enabled: false
-  # Add your notification settings (email, telegram, etc.)
+  enabled: true
+  telegram:
+    enabled: true
+    
+    # Types de notifications à envoyer
+    trades:
+      enabled: true
+      include_entry: true
+      include_exit: true
+      min_pnl_percent: 0.0  # Notifier tous les trades (0 = tous)
+    
+    learning:
+      enabled: true
+      include_adaptations: true
+      include_metrics: true
+    
+    errors:
+      enabled: true
+      critical_only: false  # Notifier toutes les erreurs
+    
+    reports:
+      enabled: true
+      schedule: "daily"  # daily, every_6h, every_12h
+      time: "20:00"  # Heure du rapport quotidien (Europe/Paris)
+    
+    # Formatage des messages
+    formatting:
+      use_emoji: true
+      use_markdown: true
+      include_charts: false
+      timezone: "Europe/Paris"
+    
+    # Rate limiting pour éviter le spam
+    rate_limit:
+      max_messages_per_hour: 30
+      cooldown_between_messages: 2  # secondes entre chaque message

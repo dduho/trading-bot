@@ -26,3 +26,6 @@ python-dateutil>=2.8.2     # Date utilities
 scikit-learn>=1.3.0        # ML models and preprocessing
 scipy>=1.11.0              # Scientific computing (used by scikit-learn)
 joblib>=1.3.0              # Model persistence
+
+# Telegram notifications
+python-telegram-bot==20.7  # Telegram bot API for notifications
