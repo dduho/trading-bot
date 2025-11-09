@@ -437,7 +437,13 @@ Fonctionnalités prévues:
 
 ## 📚 Ressources
 
-### Documentation
+### 📚 Documentation du Projet
+- **[Documentation Complète](docs/README.md)** - Index de toute la documentation
+- **[Commandes Telegram](docs/telegram/TELEGRAM_COMMANDS.md)** - Guide des commandes interactives
+- **[Système ML](docs/learning-system/LEARNING_SYSTEM.md)** - Architecture d'apprentissage
+- **[Déploiement](docs/deployment/)** - Guides de déploiement Google Cloud
+
+### Documentation Externe
 - [CCXT Documentation](https://docs.ccxt.com/)
 - [Technical Analysis Library](https://technical-analysis-library-in-python.readthedocs.io/)
 - [Pandas Documentation](https://pandas.pydata.org/docs/)
