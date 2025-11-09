@@ -329,7 +329,7 @@ class TradeDatabase:
             SELECT t.*, tc.*
             FROM trades t
             LEFT JOIN trade_conditions tc ON t.id = tc.trade_id
-            WHERE t.status = 'closed' AND t.pnl > 0
+            WHERE UPPER(t.status) = 'CLOSED' AND t.pnl > 0
             ORDER BY t.entry_time DESC
             LIMIT ?
         """, (limit,))
@@ -343,7 +343,7 @@ class TradeDatabase:
             SELECT t.*, tc.*
             FROM trades t
             LEFT JOIN trade_conditions tc ON t.id = tc.trade_id
-            WHERE t.status = 'closed' AND t.pnl < 0
+            WHERE UPPER(t.status) = 'CLOSED' AND t.pnl < 0
             ORDER BY t.entry_time DESC
             LIMIT ?
         """, (limit,))
@@ -365,7 +365,7 @@ class TradeDatabase:
             SELECT t.*, tc.*
             FROM trades t
             INNER JOIN trade_conditions tc ON t.id = tc.trade_id
-            WHERE t.status = 'closed' AND t.pnl IS NOT NULL
+            WHERE UPPER(t.status) = 'CLOSED' AND t.pnl IS NOT NULL
             ORDER BY t.entry_time DESC
         """)
 
@@ -486,7 +486,7 @@ class TradeDatabase:
                 MIN(pnl) as largest_loss,
                 AVG(duration_minutes) as avg_duration
             FROM trades
-            WHERE status = 'closed'
+            WHERE UPPER(status) = 'CLOSED'
                 AND entry_time >= datetime('now', '-' || ? || ' days')
         """, (days,))
 
