@@ -170,15 +170,19 @@ class NotificationFormatter:
         if weight_changes:
             weights_text = "\n*Optimisation des poids:*"
             for indicator, change in list(weight_changes.items())[:5]:
+                # Échapper les underscores dans les noms d'indicateurs
+                indicator_safe = self._escape_markdown(indicator)
                 sign = "+" if change > 0 else ""
-                weights_text += f"\n• {indicator}: {sign}{change:.2f}%"
+                weights_text += f"\n• {indicator_safe}: {sign}{change:.2f}%"
         
         # Adaptations
         adaptations_text = ""
         if adaptations:
             adaptations_text = "\n*Adaptations appliquées:*"
             for adaptation in adaptations[:3]:
-                adaptations_text += f"\n✅ {adaptation}"
+                # Échapper les underscores dans les adaptations
+                adaptation_safe = self._escape_markdown(adaptation)
+                adaptations_text += f"\n✅ {adaptation_safe}"
         
         # Performance
         perf_text = ""
@@ -217,11 +221,17 @@ class NotificationFormatter:
         error_message = kwargs.get('error_message', 'N/A')
         context = kwargs.get('context', {})
         
+        # Échapper les underscores dans le message d'erreur
+        error_message_safe = self._escape_markdown(error_message)
+        
         context_text = ""
         if context:
             context_text = "\n*Contexte:*"
             for key, value in list(context.items())[:5]:
-                context_text += f"\n• {key}: {value}"
+                # Échapper les underscores dans le contexte
+                key_safe = self._escape_markdown(str(key))
+                value_safe = self._escape_markdown(str(value))
+                context_text += f"\n• {key_safe}: {value_safe}"
         
         message = f"""{header}
 
@@ -229,7 +239,7 @@ class NotificationFormatter:
 *Type:* {error_type}
 
 *Message:*
-{error_message}
+{error_message_safe}
 {context_text}
 
 🕐 {self._format_timestamp()}"""
@@ -351,6 +361,22 @@ class NotificationFormatter:
         
         truncated = text[:max_length - 50]
         return truncated + "\n\n... (message tronqué)"
+    
+    def _escape_markdown(self, text: str) -> str:
+        """
+        Échapper les caractères spéciaux pour Markdown v1.
+        
+        Note: On échappe seulement les underscores qui causent des problèmes,
+        pas les astérisques car on les utilise pour le bold.
+        """
+        if not isinstance(text, str):
+            text = str(text)
+        
+        # Échapper seulement les underscores qui ne font pas partie de formatting intentionnel
+        # On garde les * pour le bold et les ` pour le code
+        text = text.replace('_', '\\_')
+        
+        return text
     
     def _get_rsi_label(self, rsi: Optional[float]) -> str:
         """Obtenir le label RSI"""
