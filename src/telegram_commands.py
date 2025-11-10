@@ -168,7 +168,7 @@ class TelegramCommandHandler:
             
             # === ACTIVITÉ DE TRADING ===
             # Récupérer tous les trades
-            all_trades = self.bot.trade_db.get_all_trades(limit=1000)
+            all_trades = self.bot.trade_db.get_trade_history(limit=1000)
             closed_trades = [t for t in all_trades if t.get('exit_time')]
             
             # Stats globales
@@ -331,7 +331,7 @@ class TelegramCommandHandler:
         
         try:
             # Récupérer toutes les trades fermées
-            all_trades = self.bot.trade_db.get_all_trades(limit=1000)
+            all_trades = self.bot.trade_db.get_trade_history(limit=1000)
             closed_trades = [t for t in all_trades if t.get('exit_time')]
             
             if not closed_trades:
@@ -375,7 +375,7 @@ class TelegramCommandHandler:
         try:
             # Trades du jour
             today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-            all_trades = self.bot.trade_db.get_all_trades(limit=1000)
+            all_trades = self.bot.trade_db.get_trade_history(limit=1000)
             today_trades = [
                 t for t in all_trades 
                 if t.get('entry_time') and datetime.fromisoformat(t['entry_time']) >= today_start

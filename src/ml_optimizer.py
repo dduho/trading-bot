@@ -478,7 +478,7 @@ class MLOptimizer:
             Dictionary with current metrics and parameters
         """
         # Get recent trades for metrics calculation
-        recent_trades = self.db.get_all_trades(limit=100)
+        recent_trades = self.db.get_trade_history(limit=100)
         closed_trades = [t for t in recent_trades if t.get('exit_time')]
         
         # Calculate basic metrics
