@@ -176,9 +176,20 @@ class TradingBot:
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
                 try:
-                    loop.run_until_complete(coro)
+                    result = loop.run_until_complete(coro)
+                    # IMPORTANT: Donner du temps au loop pour terminer proprement
+                    loop.run_until_complete(asyncio.sleep(0.1))
                     return True
                 finally:
+                    # Annuler les tâches pending avant de fermer
+                    try:
+                        pending = asyncio.all_tasks(loop)
+                        if pending:
+                            for task in pending:
+                                task.cancel()
+                            loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
+                    except:
+                        pass
                     loop.close()
             except Exception as e:
                 logger.error(f"❌ Error in notification thread: {e}", exc_info=True)
