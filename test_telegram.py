@@ -28,9 +28,8 @@ def test_notification():
         print(f"   Chat ID: {notifier.chat_id}")
         
         print("\n📤 Envoi de la notification de test...")
-        notifier.send_notification(
-            "🧪 **Test depuis VM**\n\n"
-            "Si vous recevez ce message, Telegram fonctionne correctement !"
+        notifier.send_info_notification(
+            "🧪 Test depuis VM - Si vous recevez ce message, Telegram fonctionne correctement !"
         )
         
         print("✅ Notification envoyée avec succès !\n")
