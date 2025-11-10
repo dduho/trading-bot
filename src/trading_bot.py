@@ -7,6 +7,7 @@ import asyncio
 import yaml
 import os
 import sys
+from concurrent.futures import ThreadPoolExecutor
 
 # Fix encoding pour Windows - SIMPLIFIE
 if sys.platform == 'win32':
@@ -125,6 +126,9 @@ class TradingBot:
             logger.warning(f"Failed to initialize Telegram notifications: {e}")
             self.telegram = None
 
+        # Thread pool pour notifications async
+        self._notification_executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="telegram-notif")
+
         # Initialize Telegram commands (interactive)
         self.telegram_commands = None
         try:
@@ -164,41 +168,34 @@ class TradingBot:
         """Helper pour envoyer une notification Telegram de manière synchrone"""
         if not self.telegram:
             return
+        
+        def run_async_task():
+            """Fonction exécutée dans un thread avec son propre event loop"""
+            try:
+                # Créer un nouveau loop pour ce thread
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                try:
+                    loop.run_until_complete(coro)
+                    return True
+                finally:
+                    loop.close()
+            except Exception as e:
+                logger.error(f"❌ Error in notification thread: {e}", exc_info=True)
+                return False
+        
         try:
             logger.info("📤 Tentative d'envoi notification Telegram...")
+            # Soumettre au thread pool et attendre max 10s
+            future = self._notification_executor.submit(run_async_task)
+            success = future.result(timeout=10)
             
-            # Exécuter dans un thread séparé avec un nouveau event loop
-            import threading
-            result = {'success': False, 'error': None}
-            
-            def run_in_thread():
-                try:
-                    new_loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(new_loop)
-                    try:
-                        new_loop.run_until_complete(coro)
-                        result['success'] = True
-                    finally:
-                        # Nettoyer le loop proprement
-                        pending = asyncio.all_tasks(new_loop)
-                        for task in pending:
-                            task.cancel()
-                        new_loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
-                        new_loop.close()
-                except Exception as e:
-                    result['error'] = e
-            
-            thread = threading.Thread(target=run_in_thread, daemon=True)
-            thread.start()
-            thread.join(timeout=10)  # Timeout de 10 secondes
-            
-            if result.get('error'):
-                raise result['error']
-            
-            if result.get('success'):
+            if success:
                 logger.info("✅ Notification Telegram envoyée avec succès")
             else:
-                logger.warning("⚠️ Notification Telegram timeout (>10s)")
+                logger.warning("⚠️ Notification Telegram a échoué")
+        except TimeoutError:
+            logger.warning("⚠️ Notification Telegram timeout (>10s)")
         except Exception as e:
             logger.error(f"❌ Failed to send Telegram notification: {e}", exc_info=True)
 
