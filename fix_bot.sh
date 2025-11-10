@@ -20,6 +20,7 @@ mkdir -p logs
 # 3. Supprimer l'ancienne base si elle existe
 echo ""
 echo "3. Nettoyage de l'ancienne base..."
+rm -f data/trading_history.db
 rm -f data/trades.db
 rm -f models/*.pkl
 rm -f models/*.json

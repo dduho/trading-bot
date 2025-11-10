@@ -12,6 +12,7 @@ sleep 2
 
 # Supprimer la database
 echo "Suppression de la base de données..."
+rm -f ~/trading-bot/data/trading_history.db
 rm -f ~/trading-bot/data/trades.db
 echo "✅ Database supprimée"
 
