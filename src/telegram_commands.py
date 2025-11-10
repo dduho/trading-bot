@@ -116,19 +116,22 @@ class TelegramCommandHandler:
         await self.cmd_start(update, context)
     
     async def cmd_status(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Commande /status - État du bot et portfolio"""
+        """Commande /status - État complet du bot et système"""
         if not self._is_authorized(update):
             await update.message.reply_text("❌ Non autorisé")
             return
         
         try:
-            # Récupérer les infos du portfolio
-            portfolio = self.bot._get_portfolio_info()
+            # === ÉTAT DU BOT ===
+            mode = str(self.bot.trading_mode.value).upper()
+            is_running = self.bot.running
+            status_emoji = "🟢" if is_running else "🔴"
+            status_text = "EN COURS" if is_running else "ARRÊTÉ"
             
-            # Statut du bot
-            mode = self.config.get('trading_mode', 'paper').upper()
-            symbol = self.config.get('default_symbol', 'BTC/USDT')
-            timeframe = self.config.get('timeframe', '1m')
+            # Symboles et configuration
+            symbols = ', '.join(self.bot.symbols)
+            timeframe = self.bot.timeframe
+            update_interval = self.bot.update_interval
             
             # Uptime
             if hasattr(self.bot, 'start_time'):
@@ -137,24 +140,114 @@ class TelegramCommandHandler:
             else:
                 uptime_str = "N/A"
             
-            # Construire le message
+            # === SYSTÈME ML ===
+            ml_status = "❌ Désactivé"
+            next_learning = "N/A"
+            
+            if hasattr(self.bot, 'learning_engine') and self.bot.learning_engine:
+                learning_params = self.bot.learning_engine.get_current_strategy_params()
+                ml_enabled = learning_params.get('learning_enabled', False)
+                
+                if ml_enabled:
+                    ml_status = "✅ Actif"
+                    
+                    # Prochaine analyse ML
+                    if hasattr(self.bot.learning_engine, 'last_learning_time'):
+                        last_time = self.bot.learning_engine.last_learning_time
+                        interval_hours = self.bot.learning_engine.config.get('learning_interval_hours', 2)
+                        if last_time:
+                            from datetime import timedelta
+                            next_time = last_time + timedelta(hours=interval_hours)
+                            remaining = next_time - datetime.now()
+                            if remaining.total_seconds() > 0:
+                                next_learning = self.bot._format_duration(int(remaining.total_seconds() / 60))
+                            else:
+                                next_learning = "Bientôt"
+                        else:
+                            next_learning = f"Dans {interval_hours}h (depuis démarrage)"
+            
+            # === ACTIVITÉ DE TRADING ===
+            # Récupérer tous les trades
+            all_trades = self.bot.trade_db.get_all_trades(limit=1000)
+            closed_trades = [t for t in all_trades if t.get('exit_time')]
+            
+            # Stats globales
+            total_trades = len(closed_trades)
+            winning_trades = len([t for t in closed_trades if t.get('pnl', 0) > 0])
+            losing_trades = len([t for t in closed_trades if t.get('pnl', 0) <= 0])
+            win_rate = (winning_trades / total_trades * 100) if total_trades > 0 else 0
+            
+            # Trades aujourd'hui
+            today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+            today_trades = [
+                t for t in closed_trades 
+                if t.get('exit_time') and datetime.fromisoformat(t['exit_time']) >= today_start
+            ]
+            today_total = len(today_trades)
+            today_wins = len([t for t in today_trades if t.get('pnl', 0) > 0])
+            today_losses = len([t for t in today_trades if t.get('pnl', 0) <= 0])
+            
+            # === PORTFOLIO ===
+            portfolio = self.bot._get_portfolio_info()
+            
+            # === ADAPTATIONS ML RÉCENTES ===
+            adaptations_text = ""
+            if hasattr(self.bot, 'learning_engine') and self.bot.learning_engine:
+                try:
+                    learning_params = self.bot.learning_engine.get_current_strategy_params()
+                    current_weights = learning_params.get('weights', {})
+                    
+                    # Top 3 indicateurs les plus importants
+                    sorted_weights = sorted(current_weights.items(), key=lambda x: x[1], reverse=True)[:3]
+                    if sorted_weights:
+                        adaptations_text = "\n\n📊 *Indicateurs Principaux ML:*"
+                        for indicator, weight in sorted_weights:
+                            adaptations_text += f"\n• {indicator}: {weight:.1%}"
+                except:
+                    pass
+            
+            # === SCANNER DE MARCHÉ ===
+            scan_status = "🔍 Scan actif" if is_running else "⏸️ En pause"
+            scan_info = f"Toutes les {update_interval}s" if is_running else "Arrêté"
+            
+            # === CONSTRUCTION DU MESSAGE ===
             message = (
-                f"🤖 *État du Bot*\n\n"
+                f"🤖 *ÉTAT DU BOT*\n\n"
+                f"{status_emoji} Statut: `{status_text}`\n"
                 f"📊 Mode: `{mode}`\n"
-                f"💱 Symbole: `{symbol}`\n"
+                f"⏱ Uptime: `{uptime_str}`\n\n"
+                
+                f"� *SCANNER DE MARCHÉ*\n\n"
+                f"{scan_status}\n"
+                f"�💱 Symboles: `{symbols}`\n"
                 f"⏱ Timeframe: `{timeframe}`\n"
-                f"🕐 Uptime: `{uptime_str}`\n\n"
-                f"💰 *Portfolio*\n\n"
+                f"� Fréquence: `{scan_info}`\n\n"
+                
+                f"🧠 *SYSTÈME ML*\n\n"
+                f"{ml_status}\n"
+                f"⏰ Prochain cycle: `{next_learning}`{adaptations_text}\n\n"
+                
+                f"� *PERFORMANCE GLOBALE*\n\n"
+                f"Total Trades: `{total_trades}`\n"
+                f"✅ Gagnants: `{winning_trades}` ({win_rate:.1f}%)\n"
+                f"❌ Perdants: `{losing_trades}`\n\n"
+                
+                f"📅 *AUJOURD'HUI*\n\n"
+                f"Trades: `{today_total}`\n"
+                f"✅ Gagnants: `{today_wins}`\n"
+                f"❌ Perdants: `{today_losses}`\n"
+                f"PnL: `${portfolio['today_pnl']:.2f}` ({portfolio['today_pnl_percent']:.2f}%)\n\n"
+                
+                f"💰 *PORTFOLIO*\n\n"
                 f"Balance: `${portfolio['balance']:.2f}`\n"
-                f"Positions: `{portfolio['open_positions']}`\n"
-                f"PnL Total: `${portfolio['total_pnl']:.2f}` ({portfolio['total_pnl_percent']:.2f}%)\n"
-                f"PnL Aujourd'hui: `${portfolio['today_pnl']:.2f}` ({portfolio['today_pnl_percent']:.2f}%)"
+                f"Positions ouvertes: `{portfolio['open_positions']}`\n"
+                f"PnL Total: `${portfolio['total_pnl']:.2f}` ({portfolio['total_pnl_percent']:.2f}%)"
             )
             
             await update.message.reply_text(message, parse_mode='Markdown')
             
         except Exception as e:
-            logger.error(f"Erreur commande /status: {e}")
+            logger.error(f"Erreur commande /status: {e}", exc_info=True)
             await update.message.reply_text(f"❌ Erreur: {str(e)}")
     
     async def cmd_ml(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
