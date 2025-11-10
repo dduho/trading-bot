@@ -596,6 +596,31 @@ class TradingBot:
                         self.trade_db.insert_trade_conditions(trade_id, conditions)
 
                     position.trade_id = trade_id
+                    
+                    # Send Telegram notification for SHORT position opened
+                    if self.telegram:
+                        self._send_telegram_notification(
+                            self.telegram.send_trade_notification(
+                                action='OPEN',
+                                symbol=symbol,
+                                side='SELL',
+                                entry_price=actual_price,
+                                quantity=quantity,
+                                position_value=actual_price * quantity,
+                                stop_loss=stop_loss,
+                                take_profit=take_profit,
+                                signal_data={
+                                    'confidence': signal['confidence'],
+                                    'action': signal['action'],
+                                    'rsi': analysis.get('market_conditions', {}).get('rsi'),
+                                    'macd': analysis.get('market_conditions', {}).get('macd'),
+                                    'ema': analysis.get('market_conditions', {}).get('ema_short'),
+                                    'sma': analysis.get('market_conditions', {}).get('sma_short'),
+                                    'volume_change': analysis.get('market_conditions', {}).get('volume_ratio', 0) * 100 - 100
+                                },
+                                portfolio_info=self._get_portfolio_info()
+                            )
+                        )
             else:
                 logger.error(f"Failed to execute SHORT SELL order for {symbol}")
 
