@@ -1027,7 +1027,8 @@ class TradingBot:
             # En paper mode, utiliser le balance du executor
             if self.trading_mode == TradingMode.PAPER:
                 paper_balance = self.executor.get_balance()
-                available_balance = paper_balance.get('total', {}).get('USDT', self.capital)
+                # En paper mode, get_balance() retourne directement {'USDT': 10000, 'SOL': -1.2, ...}
+                available_balance = paper_balance.get('USDT', self.capital)
             else:
                 # En mode réel, récupérer le vrai solde
                 real_balance = self.executor.get_balance()

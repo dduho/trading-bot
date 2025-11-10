@@ -308,13 +308,17 @@ class TelegramCommandHandler:
                 duration = datetime.now() - entry_time
                 duration_str = self.bot._format_duration(int(duration.total_seconds() / 60))
                 
+                # Calculer la valeur de la position
+                position_value = pos['entry_price'] * pos['quantity']
+                
                 # Calculer PnL actuel (simplifié, faudrait le prix actuel)
                 unrealized_pnl = pos.get('unrealized_pnl', 0)
                 
                 message += (
                     f"{side_emoji} *{pos['side'].upper()}* {pos['symbol']}\n"
-                    f"Prix: `${pos['entry_price']:.2f}`\n"
-                    f"Montant: `${pos['amount']:.4f}`\n"
+                    f"Prix: `${pos['entry_price']:.4f}`\n"
+                    f"Quantité: `{pos['quantity']:.4f}`\n"
+                    f"Valeur: `${position_value:.2f}`\n"
                     f"Durée: `{duration_str}`\n"
                     f"PnL: `${unrealized_pnl:.2f}`\n\n"
                 )
@@ -322,7 +326,7 @@ class TelegramCommandHandler:
             await update.message.reply_text(message, parse_mode='Markdown')
             
         except Exception as e:
-            logger.error(f"Erreur commande /positions: {e}")
+            logger.error(f"Erreur commande /positions: {e}", exc_info=True)
             await update.message.reply_text(f"❌ Erreur: {str(e)}")
     
     async def cmd_performance(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
