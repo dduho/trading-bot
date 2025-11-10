@@ -3,12 +3,15 @@
 import os
 import sys
 
+# Add src directory to path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
+
 # Charger les variables d'environnement
 from dotenv import load_dotenv
 load_dotenv()
 
 # Importer le notifier
-from src.telegram_notifier import TelegramNotifier
+from telegram_notifier import TelegramNotifier
 
 def test_notification():
     """Envoie une notification de test"""
