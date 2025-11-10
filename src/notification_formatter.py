@@ -180,8 +180,19 @@ class NotificationFormatter:
         if adaptations:
             adaptations_text = "\n*Adaptations appliquées:*"
             for adaptation in adaptations[:3]:
-                # Échapper les underscores dans les adaptations
-                adaptation_safe = self._escape_markdown(adaptation)
+                # Extraire le type d'adaptation si c'est un dict
+                if isinstance(adaptation, dict):
+                    adapt_type = adaptation.get('type', 'unknown')
+                    priority = adaptation.get('priority', 'N/A')
+                    reason = adaptation.get('reason', '')
+                    adaptation_safe = f"{adapt_type} (priorité: {priority})"
+                    if reason:
+                        # Tronquer la raison si trop longue
+                        reason_short = reason[:50] + "..." if len(reason) > 50 else reason
+                        adaptation_safe += f" - {reason_short}"
+                else:
+                    # Si c'est juste une string
+                    adaptation_safe = self._escape_markdown(str(adaptation))
                 adaptations_text += f"\n✅ {adaptation_safe}"
         
         # Performance

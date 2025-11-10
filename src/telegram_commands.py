@@ -23,9 +23,20 @@ class TelegramCommandHandler:
         """
         self.config = config
         self.bot = trading_bot
-        self.formatter = NotificationFormatter()
+        
+        # Initialiser le formatter avec config
+        formatting_config = config.get('notifications', {}).get('telegram', {}).get('formatting', {
+            'use_emoji': True,
+            'use_markdown': True,
+            'timezone': 'UTC'
+        })
+        self.formatter = NotificationFormatter(formatting_config)
+        
         self.application = None
-        self.authorized_chat_id = str(config.get('telegram', {}).get('chat_id', ''))
+        
+        # Récupérer le chat_id depuis les variables d'environnement ou config
+        import os
+        self.authorized_chat_id = str(os.getenv('TELEGRAM_CHAT_ID', config.get('notifications', {}).get('telegram', {}).get('chat_id', '')))
         
         logger.info("TelegramCommandHandler initialisé")
     
@@ -38,7 +49,8 @@ class TelegramCommandHandler:
     async def start(self):
         """Démarre le gestionnaire de commandes"""
         try:
-            token = self.config.get('telegram', {}).get('bot_token')
+            import os
+            token = os.getenv('TELEGRAM_BOT_TOKEN', self.config.get('notifications', {}).get('telegram', {}).get('bot_token'))
             if not token:
                 logger.warning("Pas de token Telegram, commandes désactivées")
                 return
