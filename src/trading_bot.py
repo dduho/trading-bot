@@ -159,6 +159,26 @@ class TradingBot:
             'live': TradingMode.LIVE
         }
         return mode_map.get(mode_str, TradingMode.PAPER)
+    
+    def _send_telegram_notification(self, coro):
+        """Helper pour envoyer une notification Telegram de manière synchrone"""
+        if not self.telegram:
+            return
+        try:
+            # Créer une nouvelle event loop si nécessaire
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_closed():
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+            except RuntimeError:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+            
+            # Exécuter la coroutine
+            loop.run_until_complete(coro)
+        except Exception as e:
+            logger.error(f"Failed to send Telegram notification: {e}")
 
     def _print_initialization_message(self):
         """Print initialization message with warnings"""
@@ -404,8 +424,8 @@ class TradingBot:
 
                     # Send Telegram notification for position opened
                     if self.telegram:
-                        try:
-                            asyncio.create_task(self.telegram.send_trade_notification(
+                        self._send_telegram_notification(
+                            self.telegram.send_trade_notification(
                                 action='OPEN',
                                 symbol=symbol,
                                 side='BUY',
@@ -424,9 +444,8 @@ class TradingBot:
                                     'volume_change': analysis.get('market_conditions', {}).get('volume_ratio', 0) * 100 - 100
                                 },
                                 portfolio_info=self._get_portfolio_info()
-                            ))
-                        except Exception as e:
-                            logger.error(f"Failed to send Telegram notification: {e}")
+                            )
+                        )
 
                     # Place stop loss and take profit orders (if not paper mode)
                     if self.trading_mode != TradingMode.PAPER:
@@ -489,8 +508,8 @@ class TradingBot:
 
                         # Send Telegram notification for position closed
                         if self.telegram:
-                            try:
-                                asyncio.create_task(self.telegram.send_trade_notification(
+                            self._send_telegram_notification(
+                                self.telegram.send_trade_notification(
                                     action='CLOSE',
                                     symbol=symbol,
                                     side='SELL',
@@ -502,9 +521,8 @@ class TradingBot:
                                     duration=self._format_duration(duration_minutes),
                                     reason='Signal: SELL (close long)',
                                     portfolio_info=self._get_portfolio_info()
-                                ))
-                            except Exception as e:
-                                logger.error(f"Failed to send Telegram notification: {e}")
+                                )
+                            )
             else:
                 logger.error(f"Failed to execute SELL order for {symbol}")
 
@@ -620,8 +638,8 @@ class TradingBot:
 
                 # Send Telegram notification for position closed (SL/TP)
                 if self.telegram:
-                    try:
-                        asyncio.create_task(self.telegram.send_trade_notification(
+                    self._send_telegram_notification(
+                        self.telegram.send_trade_notification(
                             action='CLOSE',
                             symbol=pos['symbol'],
                             side='SELL' if pos['side'] == 'long' else 'BUY',
@@ -633,9 +651,8 @@ class TradingBot:
                             duration=self._format_duration(duration_minutes),
                             reason='Stop/Target Hit',
                             portfolio_info=self._get_portfolio_info()
-                        ))
-                    except Exception as e:
-                        logger.error(f"Failed to send Telegram notification: {e}")
+                        )
+                    )
 
     def _print_trade(self, action: str, symbol: str, price: float,
                     quantity: float, confidence: float, reason: str,
@@ -778,17 +795,16 @@ class TradingBot:
 
                         # Send Telegram notification for learning cycle
                         if self.telegram:
-                            try:
-                                asyncio.create_task(self.telegram.send_learning_notification(
+                            self._send_telegram_notification(
+                                self.telegram.send_learning_notification(
                                     duration=learning_results.get('duration', 0),
                                     trades_analyzed=learning_results.get('trades_analyzed', 0),
                                     model_metrics=learning_results.get('model_metrics', {}),
                                     weight_changes=learning_results.get('weight_changes', {}),
                                     adaptations=learning_results.get('adaptations', []),
                                     performance=learning_results.get('performance_stats', {})
-                                ))
-                            except Exception as e:
-                                logger.error(f"Failed to send Telegram notification: {e}")
+                                )
+                            )
                     else:
                         logger.warning(f"Learning cycle had errors: {learning_results.get('errors')}")
 
@@ -895,12 +911,9 @@ class TradingBot:
         
         # Stop Telegram command handler
         if self.telegram_commands:
-            try:
-                import asyncio
-                asyncio.create_task(self.telegram_commands.stop())
-                logger.info("Telegram commands stopped")
-            except Exception as e:
-                logger.error(f"Failed to stop Telegram commands: {e}")
+            self._send_telegram_notification(
+                self.telegram_commands.stop()
+            )
         
         print(f"\n{Fore.YELLOW}Trading Bot Stopped{Style.RESET_ALL}")
 
