@@ -202,7 +202,9 @@ class TelegramCommandHandler:
                     if sorted_weights:
                         adaptations_text = "\n\n📊 *Indicateurs Principaux ML:*"
                         for indicator, weight in sorted_weights:
-                            adaptations_text += f"\n• {indicator}: {weight:.1%}"
+                            # Échapper les underscores pour Markdown
+                            indicator_safe = indicator.replace('_', '\\_')
+                            adaptations_text += f"\n• {indicator_safe}: {weight:.1%}"
                 except:
                     pass
             
