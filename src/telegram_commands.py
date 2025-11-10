@@ -294,7 +294,7 @@ class TelegramCommandHandler:
         
         try:
             # Récupérer les positions ouvertes
-            positions = self.bot.trade_db.get_open_positions()
+            positions = self.bot.trade_db.get_trade_history(limit=100, status='open')
             
             if not positions:
                 await update.message.reply_text("📭 Aucune position ouverte")
