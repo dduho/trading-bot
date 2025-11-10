@@ -13,7 +13,12 @@ case "$1" in
         cd ~/trading-bot
         source venv/bin/activate
         nohup python3 run_bot.py > bot.log 2>&1 &
-        echo -e "${GREEN}✅ Bot démarré (PID: $!)${NC}"
+        PID=$!
+        echo -e "${GREEN}✅ Bot démarré en arrière-plan (PID: $PID)${NC}"
+        echo -e "${BLUE}💡 Pour voir les logs: ./bot_manager.sh logs${NC}"
+        sleep 2
+        echo -e "\n${BLUE}📋 Dernières lignes des logs:${NC}"
+        tail -n 5 ~/trading-bot/bot.log
         ;;
     
     stop)
@@ -48,9 +53,8 @@ case "$1" in
         $0 stop
         git pull
         source venv/bin/activate
-        pip install -r requirements.txt
+        pip install -r requirements.txt > /dev/null 2>&1
         $0 start
-        echo -e "${GREEN}✅ Mise à jour terminée${NC}"
         ;;
     
     *)
