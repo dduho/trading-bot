@@ -165,6 +165,7 @@ class TradingBot:
         if not self.telegram:
             return
         try:
+            logger.info("📤 Tentative d'envoi notification Telegram...")
             # Créer une nouvelle event loop si nécessaire
             try:
                 loop = asyncio.get_event_loop()
@@ -177,8 +178,9 @@ class TradingBot:
             
             # Exécuter la coroutine
             loop.run_until_complete(coro)
+            logger.info("✅ Notification Telegram envoyée avec succès")
         except Exception as e:
-            logger.error(f"Failed to send Telegram notification: {e}")
+            logger.error(f"❌ Failed to send Telegram notification: {e}", exc_info=True)
 
     def _print_initialization_message(self):
         """Print initialization message with warnings"""
