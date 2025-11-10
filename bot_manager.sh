@@ -7,23 +7,41 @@ RED='\033[0;31m'
 YELLOW='\033[1;33m'
 NC='\033[0m'
 
+# Détecter si systemd est utilisé
+USE_SYSTEMD=false
+if systemctl list-units --full --all | grep -q "trading-bot.service"; then
+    USE_SYSTEMD=true
+fi
+
 case "$1" in
     start)
-        echo -e "${BLUE}🚀 Démarrage du Trading Bot...${NC}"
-        cd ~/trading-bot
-        source venv/bin/activate
-        nohup python3 run_bot.py > bot.log 2>&1 &
-        PID=$!
-        echo -e "${GREEN}✅ Bot démarré en arrière-plan (PID: $PID)${NC}"
-        echo -e "${BLUE}💡 Pour voir les logs: ./bot_manager.sh logs${NC}"
-        sleep 2
-        echo -e "\n${BLUE}📋 Dernières lignes des logs:${NC}"
-        tail -n 5 ~/trading-bot/bot.log
+        if [ "$USE_SYSTEMD" = true ]; then
+            echo -e "${BLUE}🚀 Démarrage du Trading Bot (systemd)...${NC}"
+            sudo systemctl start trading-bot
+            echo -e "${GREEN}✅ Bot démarré${NC}"
+        else
+            echo -e "${BLUE}🚀 Démarrage du Trading Bot...${NC}"
+            cd ~/trading-bot
+            source venv/bin/activate
+            nohup python3 run_bot.py > bot.log 2>&1 &
+            PID=$!
+            echo -e "${GREEN}✅ Bot démarré en arrière-plan (PID: $PID)${NC}"
+            echo -e "${BLUE}💡 Pour voir les logs: ./bot_manager.sh logs${NC}"
+            sleep 2
+            echo -e "\n${BLUE}📋 Dernières lignes des logs:${NC}"
+            tail -n 5 ~/trading-bot/bot.log
+        fi
         ;;
     
     stop)
-        echo -e "${YELLOW}🛑 Arrêt du Trading Bot...${NC}"
-        pkill -f "python.*run_bot.py" && echo -e "${GREEN}✅ Bot arrêté${NC}" || echo -e "${RED}❌ Aucun bot en cours${NC}"
+        if [ "$USE_SYSTEMD" = true ]; then
+            echo -e "${YELLOW}🛑 Arrêt du Trading Bot (systemd)...${NC}"
+            sudo systemctl stop trading-bot
+            echo -e "${GREEN}✅ Bot arrêté${NC}"
+        else
+            echo -e "${YELLOW}🛑 Arrêt du Trading Bot...${NC}"
+            pkill -f "python.*run_bot.py" && echo -e "${GREEN}✅ Bot arrêté${NC}" || echo -e "${RED}❌ Aucun bot en cours${NC}"
+        fi
         ;;
     
     restart)
@@ -34,17 +52,25 @@ case "$1" in
         ;;
     
     status)
-        if pgrep -f "python.*run_bot.py" > /dev/null; then
-            PID=$(pgrep -f "python.*run_bot.py")
-            echo -e "${GREEN}✅ Bot en cours d'exécution (PID: $PID)${NC}"
+        if [ "$USE_SYSTEMD" = true ]; then
+            sudo systemctl status trading-bot --no-pager
         else
-            echo -e "${RED}❌ Bot arrêté${NC}"
+            if pgrep -f "python.*run_bot.py" > /dev/null; then
+                PID=$(pgrep -f "python.*run_bot.py")
+                echo -e "${GREEN}✅ Bot en cours d'exécution (PID: $PID)${NC}"
+            else
+                echo -e "${RED}❌ Bot arrêté${NC}"
+            fi
         fi
         ;;
     
     logs)
         echo -e "${BLUE}📋 Logs du bot (Ctrl+C pour quitter):${NC}"
-        tail -f ~/trading-bot/bot.log
+        if [ "$USE_SYSTEMD" = true ]; then
+            journalctl -u trading-bot -f
+        else
+            tail -f ~/trading-bot/bot.log
+        fi
         ;;
     
     update)
