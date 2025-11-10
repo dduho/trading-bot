@@ -40,7 +40,7 @@ indicators:
 # Trading strategy
 strategy:
   name: "Multi-Indicator Strategy"
-  min_confidence: 0.20  # MODE ULTRA AGRESSIF: 20% - Le bot va trader souvent!
+  min_confidence: 0.10  # TEMPORAIRE POUR TEST: 10% pour forcer des trades
 
   # Signal weights - ÉQUILIBRÉS AU DÉPART (le ML va les optimiser)
   weights:
