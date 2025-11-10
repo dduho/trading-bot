@@ -35,6 +35,7 @@ class AdaptiveLearningEngine:
         # Learning state
         self.learning_enabled = True
         self.last_learning_update = None
+        self.last_learning_time = None  # Alias pour compatibility
         self.learning_interval_hours = config.get('learning_interval_hours', 24)
         self.min_trades_for_learning = config.get('min_trades_for_learning', 50)
         self.adaptation_aggressiveness = config.get('adaptation_aggressiveness', 'moderate')  # conservative, moderate, aggressive
@@ -73,6 +74,7 @@ class AdaptiveLearningEngine:
                 )
                 # Mark a timestamp so we wait full interval before next attempt
                 self.last_learning_update = datetime.now()
+                self.last_learning_time = self.last_learning_update  # Sync alias
                 return False
             return True
 
@@ -164,6 +166,7 @@ class AdaptiveLearningEngine:
             self._record_learning_event(results)
 
             self.last_learning_update = datetime.now()
+            self.last_learning_time = self.last_learning_update  # Sync alias
             results['success'] = True
 
             logger.info("LEARNING CYCLE COMPLETED SUCCESSFULLY")

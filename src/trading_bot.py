@@ -154,6 +154,41 @@ class TradingBot:
 
         self._print_initialization_message()
         logger.info(f"Trading Bot initialized with {len(self.symbols)} symbols in {self.trading_mode.value.upper()} mode")
+        
+        # Restaurer les positions ouvertes depuis la base de données
+        self._restore_open_positions()
+
+    def _restore_open_positions(self):
+        """Restore open positions from database on startup"""
+        try:
+            open_trades = self.trade_db.get_trade_history(limit=100, status='open')
+            
+            if open_trades:
+                logger.info(f"🔄 Restoring {len(open_trades)} open positions from database...")
+                
+                for trade in open_trades:
+                    # Recréer l'objet Position
+                    from risk_manager import Position
+                    position = Position(
+                        symbol=trade['symbol'],
+                        side=trade['side'],
+                        entry_price=trade['entry_price'],
+                        quantity=trade['quantity'],
+                        stop_loss=trade.get('stop_loss'),
+                        take_profit=trade.get('take_profit')
+                    )
+                    position.trade_id = trade['id']
+                    position.entry_time = datetime.fromisoformat(trade['entry_time'])
+                    
+                    # Ajouter au risk manager
+                    self.risk_manager.positions[trade['symbol']] = position
+                    
+                logger.info(f"✅ Restored {len(open_trades)} positions: {list(self.risk_manager.positions.keys())}")
+            else:
+                logger.info("ℹ️  No open positions to restore")
+                
+        except Exception as e:
+            logger.error(f"❌ Error restoring positions: {e}", exc_info=True)
 
     def _parse_trading_mode(self, mode_str: str) -> TradingMode:
         """Parse trading mode string to TradingMode enum"""
