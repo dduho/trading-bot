@@ -175,20 +175,30 @@ class TradingBot:
                 try:
                     new_loop = asyncio.new_event_loop()
                     asyncio.set_event_loop(new_loop)
-                    new_loop.run_until_complete(coro)
-                    new_loop.close()
-                    result['success'] = True
+                    try:
+                        new_loop.run_until_complete(coro)
+                        result['success'] = True
+                    finally:
+                        # Nettoyer le loop proprement
+                        pending = asyncio.all_tasks(new_loop)
+                        for task in pending:
+                            task.cancel()
+                        new_loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
+                        new_loop.close()
                 except Exception as e:
                     result['error'] = e
             
-            thread = threading.Thread(target=run_in_thread)
+            thread = threading.Thread(target=run_in_thread, daemon=True)
             thread.start()
             thread.join(timeout=10)  # Timeout de 10 secondes
             
             if result.get('error'):
                 raise result['error']
             
-            logger.info("✅ Notification Telegram envoyée avec succès")
+            if result.get('success'):
+                logger.info("✅ Notification Telegram envoyée avec succès")
+            else:
+                logger.warning("⚠️ Notification Telegram timeout (>10s)")
         except Exception as e:
             logger.error(f"❌ Failed to send Telegram notification: {e}", exc_info=True)
 
