@@ -16,8 +16,13 @@ from telegram_notifier import TelegramNotifier
 def test_notification():
     """Envoie une notification de test"""
     try:
+        print("🔍 Chargement de la configuration...")
+        import yaml
+        with open('config.yaml', 'r') as f:
+            config = yaml.safe_load(f)
+        
         print("🔍 Initialisation du notifier...")
-        notifier = TelegramNotifier()
+        notifier = TelegramNotifier(config)
         
         print(f"   Token: {notifier.bot_token[:20]}...")
         print(f"   Chat ID: {notifier.chat_id}")
