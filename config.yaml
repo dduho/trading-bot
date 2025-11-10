@@ -40,65 +40,65 @@ indicators:
 # Trading strategy
 strategy:
   name: "Multi-Indicator Strategy"
-  min_confidence: 0.60  # ML recommended: increased from 0.14 for better selectivity
+  min_confidence: 0.70  # DÉMARRAGE CONSERVATEUR: Commencer avec 70% de confiance minimum
 
-  # Signal weights optimized by ML (based on feature importance and performance analysis)
+  # Signal weights - ÉQUILIBRÉS AU DÉPART (le ML va les optimiser)
   weights:
-    rsi: 0.1771          # ML optimized: RSI importance
-    macd: 0.2116         # ML optimized: MACD importance (includes macd_hist)
-    moving_averages: 0.3305  # ML optimized: MA crossover is most important feature!
-    volume: 0.1752       # ML optimized: Volume ratio importance
-    trend: 0.1057        # ML optimized: Trend indicator importance
+    rsi: 0.20            # 20% RSI
+    macd: 0.20           # 20% MACD
+    moving_averages: 0.20  # 20% Moving Averages
+    volume: 0.20         # 20% Volume
+    trend: 0.20          # 20% Trend
 
   anti_trend_filter:
     enabled: true
-    extra_conf_margin: 0.02  # Exige (min_confidence + marge) si signal va contre la tendance
+    extra_conf_margin: 0.05  # Marge plus élevée pour démarrage prudent
 
 # Risk management
 risk:
-  max_position_size_percent: 5    # 5% par position (inchangé)
-  stop_loss_percent: 2.0          # Stop loss at 2%
-  take_profit_percent: 6.0        # ML recommended: increased from 4.0 to 6.0 (3:1 ratio)
-  trailing_stop_percent: 1.5
-  risk_reward_ratio: 3.0          # ML recommended: increased from 2.0 to 3.0 (target 2.0 min)
-  max_open_positions: 3           # Reduced for better focus with higher confidence
-  max_daily_trades: 30            # Reduced - quality over quantity with ML filtering
-  max_daily_loss_percent: 5.0
-  cooldown_seconds: 120           # Increased cooldown for better trade spacing
+  max_position_size_percent: 2    # DÉMARRAGE BAS: 2% par position (vs 5% avant)
+  stop_loss_percent: 1.5          # DÉMARRAGE SERRÉ: Stop loss at 1.5%
+  take_profit_percent: 4.5        # RATIO 3:1 conservateur
+  trailing_stop_percent: 1.0
+  risk_reward_ratio: 3.0          # Ratio conservateur
+  max_open_positions: 2           # DÉMARRAGE: Max 2 positions simultanées
+  max_daily_trades: 15            # DÉMARRAGE: Max 15 trades/jour
+  max_daily_loss_percent: 3.0     # DÉMARRAGE: Limite perte journalière à 3%
+  cooldown_seconds: 180           # DÉMARRAGE: 3 minutes entre trades
 
 # Execution settings
 execution:
   order_type: limit  # market or limit
   slippage_tolerance: 0.5  # % tolerance for price slippage
 
-# Adaptive Learning System - CONTINUOUS LEARNING MODE
+# Adaptive Learning System - APPRENTISSAGE PROGRESSIF
 learning:
   enabled: true  # Enable/disable learning system
-  learning_interval_hours: 2  # OPTIMIZED: Learning cycle every 2 hours (apprentissage continu)
-  min_trades_for_learning: 10  # REDUCED: Only 10 trades needed (apprentissage plus rapide)
-  adaptation_aggressiveness: aggressive  # AGGRESSIVE: Adaptations rapides et fréquentes
-  auto_apply_adaptations: true  # ML ENABLED: Auto-apply learned improvements
-  continuous_learning: true  # NEW: Mode apprentissage continu activé
+  learning_interval_hours: 1  # RAPIDE: Apprentissage toutes les heures
+  min_trades_for_learning: 5  # TRÈS BAS: Commence à apprendre dès 5 trades
+  adaptation_aggressiveness: moderate  # MODÉRÉ: Changements prudents au début
+  auto_apply_adaptations: true  # AUTO: Applique les améliorations automatiquement
+  continuous_learning: true  # Mode apprentissage continu activé
 
   # ML Model settings
   ml_model:
     type: random_forest  # random_forest or gradient_boosting
-    retrain_interval_hours: 24  # OPTIMIZED: Retrain model every day (au lieu de 168h)
-    min_accuracy_threshold: 0.55  # LOWERED: Accept models with 55% accuracy (plus permissif)
-    incremental_learning: true  # NEW: Apprentissage incrémental (sans tout réentraîner)
-    auto_retrain_on_poor_performance: true  # NEW: Réentraînement automatique si performance baisse
+    retrain_interval_hours: 12  # Réentraînement toutes les 12h
+    min_accuracy_threshold: 0.52  # PERMISSIF: Accepte 52% pour commencer
+    incremental_learning: true  # Apprentissage incrémental
+    auto_retrain_on_poor_performance: true  # Réentraînement auto si mauvaise perf
 
-  # Learning goals
+  # Learning goals - OBJECTIFS PROGRESSIFS
   target_metrics:
-    win_rate: 0.55  # Target 55% win rate
-    profit_factor: 2.0  # Target profit factor
-    sharpe_ratio: 1.5  # Target Sharpe ratio
+    win_rate: 0.52  # DÉMARRAGE: Target 52% win rate (augmentera progressivement)
+    profit_factor: 1.5  # DÉMARRAGE: Target profit factor 1.5
+    sharpe_ratio: 1.0  # DÉMARRAGE: Target Sharpe ratio 1.0
   
   # Performance monitoring for continuous improvement
   performance_monitoring:
-    check_interval_hours: 1  # NEW: Vérifier la performance toutes les heures
-    degradation_threshold: 0.05  # NEW: Si performance baisse de 5%, réapprendre
-    improvement_reward_multiplier: 1.2  # NEW: Favoriser les stratégies qui s'améliorent
+    check_interval_hours: 1  # Vérifier la performance toutes les heures
+    degradation_threshold: 0.10  # Si performance baisse de 10%, réapprendre
+    improvement_reward_multiplier: 1.5  # Favoriser les stratégies qui s'améliorent
 
 # Telegram Notifications
 notifications:
