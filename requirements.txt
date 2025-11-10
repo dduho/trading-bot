@@ -7,7 +7,7 @@ python-binance>=1.0.19     # Binance API (optional alternative)
 
 # Technical analysis
 ta>=0.11.0                 # Technical analysis indicators
-pandas-ta>=0.3.14b         # Additional technical indicators
+# pandas-ta>=0.3.14        # Additional technical indicators (not available on PyPI)
 
 # WebSocket for real-time data
 websockets>=12.0           # WebSocket client
