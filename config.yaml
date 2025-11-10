@@ -40,7 +40,7 @@ indicators:
 # Trading strategy
 strategy:
   name: "Multi-Indicator Strategy"
-  min_confidence: 0.20  # MODE ULTRA AGRESSIF: 20% - Le bot va trader souvent!
+  min_confidence: 0.10  # MODE ULTRA AGRESSIF: 10% - Maximum de trades pour apprentissage rapide!
 
   # Signal weights - ÉQUILIBRÉS AU DÉPART (le ML va les optimiser)
   weights:
@@ -63,8 +63,8 @@ risk:
   risk_reward_ratio: 3.0          # Ratio conservateur
   max_open_positions: 5           # AUGMENTÉ: Max 5 positions simultanées
   max_daily_trades: 50            # AUGMENTÉ: Max 50 trades/jour - apprentissage rapide!
-  max_daily_loss_percent: 3.0     # DÉMARRAGE: Limite perte journalière à 3%
-  cooldown_seconds: 180           # DÉMARRAGE: 3 minutes entre trades
+  max_daily_loss_percent: 5.0     # AUGMENTÉ: Limite perte journalière à 5% pour plus de trades
+  cooldown_seconds: 60            # RÉDUIT: 1 minute entre trades pour apprentissage rapide
 
 # Execution settings
 execution:
