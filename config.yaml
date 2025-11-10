@@ -40,7 +40,7 @@ indicators:
 # Trading strategy
 strategy:
   name: "Multi-Indicator Strategy"
-  min_confidence: 0.10  # MODE ULTRA AGRESSIF: 10% - Maximum de trades pour apprentissage rapide!
+  min_confidence: 0.05  # MODE ULTRA AGRESSIF: 5% - MAXIMUM de trades pour apprentissage!
 
   # Signal weights - ÉQUILIBRÉS AU DÉPART (le ML va les optimiser)
   weights:
@@ -51,7 +51,7 @@ strategy:
     trend: 0.20          # 20% Trend
 
   anti_trend_filter:
-    enabled: true
+    enabled: false  # DÉSACTIVÉ temporairement pour maximiser trades pendant apprentissage
     extra_conf_margin: 0.05  # Marge plus élevée pour démarrage prudent
 
 # Risk management
