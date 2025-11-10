@@ -40,7 +40,7 @@ indicators:
 # Trading strategy
 strategy:
   name: "Multi-Indicator Strategy"
-  min_confidence: 0.70  # DÉMARRAGE CONSERVATEUR: Commencer avec 70% de confiance minimum
+  min_confidence: 0.35  # DÉMARRAGE AGRESSIF: 35% - Le bot apprendra à affiner
 
   # Signal weights - ÉQUILIBRÉS AU DÉPART (le ML va les optimiser)
   weights:
@@ -56,13 +56,13 @@ strategy:
 
 # Risk management
 risk:
-  max_position_size_percent: 2    # DÉMARRAGE BAS: 2% par position (vs 5% avant)
+  max_position_size_percent: 2    # DÉMARRAGE BAS: 2% par position (le ML ajustera)
   stop_loss_percent: 1.5          # DÉMARRAGE SERRÉ: Stop loss at 1.5%
   take_profit_percent: 4.5        # RATIO 3:1 conservateur
   trailing_stop_percent: 1.0
   risk_reward_ratio: 3.0          # Ratio conservateur
-  max_open_positions: 2           # DÉMARRAGE: Max 2 positions simultanées
-  max_daily_trades: 15            # DÉMARRAGE: Max 15 trades/jour
+  max_open_positions: 5           # AUGMENTÉ: Max 5 positions simultanées
+  max_daily_trades: 50            # AUGMENTÉ: Max 50 trades/jour - apprentissage rapide!
   max_daily_loss_percent: 3.0     # DÉMARRAGE: Limite perte journalière à 3%
   cooldown_seconds: 180           # DÉMARRAGE: 3 minutes entre trades
 
