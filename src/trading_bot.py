@@ -955,6 +955,15 @@ class TradingBot:
             
             portfolio = self.risk_manager.get_portfolio_summary(current_prices)
             
+            # Calculer le PnL du jour
+            from datetime import datetime
+            today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+            today_trades = [
+                t for t in self.trade_db.get_trades(limit=100)
+                if t.get('exit_time') and datetime.fromisoformat(t['exit_time']) >= today_start
+            ]
+            today_pnl = sum(t.get('pnl', 0) for t in today_trades)
+            
             return {
                 'balance': self.capital,
                 'open_positions': portfolio.get('open_positions', 0),
@@ -962,7 +971,9 @@ class TradingBot:
                 'daily_trades': portfolio.get('daily_trades', 0),
                 'unrealized_pnl': portfolio.get('unrealized_pnl', 0),
                 'total_pnl': portfolio.get('total_pnl', 0),
-                'total_pnl_percent': (portfolio.get('total_pnl', 0) / self.capital * 100) if self.capital > 0 else 0
+                'total_pnl_percent': (portfolio.get('total_pnl', 0) / self.capital * 100) if self.capital > 0 else 0,
+                'today_pnl': today_pnl,
+                'today_pnl_percent': (today_pnl / self.capital * 100) if self.capital > 0 else 0
             }
         except Exception as e:
             logger.error(f"Error getting portfolio info: {e}")
@@ -973,7 +984,9 @@ class TradingBot:
                 'daily_trades': 0,
                 'unrealized_pnl': 0,
                 'total_pnl': 0,
-                'total_pnl_percent': 0
+                'total_pnl_percent': 0,
+                'today_pnl': 0,
+                'today_pnl_percent': 0
             }
 
     def _format_duration(self, minutes: float) -> str:
