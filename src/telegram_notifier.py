@@ -149,7 +149,7 @@ class TelegramNotifier:
     async def _send_message(self, text: str, parse_mode: str = 'Markdown', urgent: bool = False):
         """
         Envoyer un message via Telegram Bot API.
-        
+
         Args:
             text: Contenu du message
             parse_mode: Format ('Markdown' ou 'HTML')
@@ -158,44 +158,49 @@ class TelegramNotifier:
         if not self.enabled:
             logger.debug("Telegram notifications disabled, message not sent")
             return
-        
+
         # Vérifier le rate limiting (sauf si urgent)
         if not urgent and not self._check_rate_limit():
             logger.warning(f"Rate limit reached, adding message to queue ({len(self.message_queue)} in queue)")
             self._add_to_queue(text)
             return
-        
+
         # Vérifier le cooldown
         if self.last_message_time and not urgent:
             time_since_last = (datetime.now() - self.last_message_time).total_seconds()
             if time_since_last < self.cooldown:
                 await asyncio.sleep(self.cooldown - time_since_last)
-        
+
         try:
+            # Créer un nouveau bot pour éviter les conflits d'event loop
+            # (le bot Telegram garde une référence à l'event loop de création)
+            bot = Bot(token=self.bot_token)
+
             # Envoyer le message
-            await self.bot.send_message(
+            await bot.send_message(
                 chat_id=self.chat_id,
                 text=text,
                 parse_mode=parse_mode,
                 disable_web_page_preview=True
             )
-            
+
             # Mettre à jour l'historique
             now = datetime.now()
             self.message_history.append(now)
             self.last_message_time = now
-            
+
             logger.info("Telegram notification sent successfully")
-            
+
         except TelegramError as e:
             # Logger l'erreur mais ne pas crasher le bot
             logger.error(f"Failed to send Telegram notification: {e}")
-            
+
             # Si le message est urgent, réessayer une fois
             if urgent:
                 await asyncio.sleep(5)
                 try:
-                    await self.bot.send_message(
+                    bot_retry = Bot(token=self.bot_token)
+                    await bot_retry.send_message(
                         chat_id=self.chat_id,
                         text=f"⚠️ *Erreur précédente non envoyée*\n\n{text}",
                         parse_mode=parse_mode,
@@ -204,9 +209,9 @@ class TelegramNotifier:
                     logger.info("Urgent message sent on retry")
                 except Exception as retry_error:
                     logger.error(f"Failed to send urgent message even on retry: {retry_error}")
-        
+
         except Exception as e:
-            logger.error(f"Unexpected error sending Telegram message: {e}", exc_info=True)
+            logger.error(f"Unknown error in HTTP implementation: {type(e).__name__}('{e}')", exc_info=False)
     
     def _check_rate_limit(self) -> bool:
         """

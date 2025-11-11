@@ -462,6 +462,19 @@ class TradeDatabase:
         self.conn.commit()
         logger.info(f"Learning event recorded: {event_type} - {description}")
 
+    def get_recent_trades(self, limit: int = 100, status: Optional[str] = 'CLOSED') -> List[Dict]:
+        """
+        Get recent trades (alias for get_trade_history with sensible defaults).
+
+        Args:
+            limit: Maximum number of trades to return
+            status: Filter by status (default: 'CLOSED')
+
+        Returns:
+            List of trade dictionaries
+        """
+        return self.get_trade_history(limit=limit, status=status)
+
     def get_performance_stats(self, days: int = 30) -> Dict[str, Any]:
         """
         Calculate performance statistics over specified period.
