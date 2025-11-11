@@ -71,10 +71,10 @@ execution:
   order_type: limit  # market or limit
   slippage_tolerance: 0.5  # % tolerance for price slippage
 
-# Adaptive Learning System - APPRENTISSAGE PROGRESSIF
+# Adaptive Learning System - APPRENTISSAGE ULTRA-RAPIDE
 learning:
   enabled: true  # Enable/disable learning system
-  learning_interval_hours: 1  # RAPIDE: Apprentissage toutes les heures
+  learning_interval_hours: 0.5  # ULTRA-RAPIDE: Apprentissage toutes les 30 minutes!
   min_trades_for_learning: 5  # TRÈS BAS: Commence à apprendre dès 5 trades
   adaptation_aggressiveness: moderate  # MODÉRÉ: Changements prudents au début
   auto_apply_adaptations: true  # AUTO: Applique les améliorations automatiquement

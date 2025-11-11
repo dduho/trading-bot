@@ -47,6 +47,21 @@ class AdaptiveLearningEngine:
         # Learning history
         self.learning_history = []
 
+        # AUTO-OPTIMIZATION MODULES
+        try:
+            from dynamic_confidence_manager import DynamicConfidenceManager
+            from symbol_rotation_manager import SymbolRotationManager
+
+            self.confidence_manager = DynamicConfidenceManager(db, config)
+            self.symbol_manager = SymbolRotationManager(db, config)
+            self.auto_optimization_enabled = True
+            logger.info("✨ AUTO-OPTIMIZATION modules loaded successfully")
+        except Exception as e:
+            logger.warning(f"Could not load auto-optimization modules: {e}")
+            self.confidence_manager = None
+            self.symbol_manager = None
+            self.auto_optimization_enabled = False
+
         logger.info(f"Adaptive Learning Engine initialized - Learning interval: {self.learning_interval_hours}h")
 
     def should_trigger_learning(self) -> bool:
@@ -169,6 +184,15 @@ class AdaptiveLearningEngine:
             else:
                 logger.info("Step 5: Adaptations calculated but not auto-applied")
                 results['adaptations_applied'] = False
+
+            # Step 6: AUTO-OPTIMIZATION (NEW!)
+            if self.auto_optimization_enabled:
+                logger.info("Step 6: Running AUTO-OPTIMIZATION systems...")
+                auto_results = self._run_auto_optimization()
+                results['auto_optimization'] = auto_results
+            else:
+                logger.info("Step 6: Auto-optimization disabled")
+                results['auto_optimization'] = {'enabled': False}
 
             # Record learning event
             self._record_learning_event(results)
@@ -557,3 +581,49 @@ class AdaptiveLearningEngine:
         """Disable adaptive learning."""
         self.learning_enabled = False
         logger.info("Adaptive learning DISABLED")
+
+    def _run_auto_optimization(self) -> Dict[str, Any]:
+        """
+        Execute auto-optimization systems:
+        1. Dynamic Confidence Adjustment
+        2. Symbol Rotation
+
+        Returns:
+            Dict with optimization results
+        """
+        results = {
+            'confidence_adjustment': {},
+            'symbol_rotation': {}
+        }
+
+        try:
+            # 1. Adjust min_confidence dynamically
+            if self.confidence_manager:
+                logger.info("  → Adjusting confidence threshold...")
+                conf_result = self.confidence_manager.apply_adjustment()
+                results['confidence_adjustment'] = conf_result
+
+                if conf_result.get('adjusted'):
+                    logger.info(f"  ✓ Confidence: {conf_result['old_value']:.2%} → {conf_result['new_value']:.2%}")
+                    logger.info(f"    Reason: {conf_result['reason']}")
+                else:
+                    logger.info(f"  ○ Confidence unchanged: {conf_result.get('reason')}")
+
+            # 2. Rotate symbols if needed
+            if self.symbol_manager:
+                logger.info("  → Evaluating symbol performance...")
+                rotation_result = self.symbol_manager.apply_rotation()
+                results['symbol_rotation'] = rotation_result
+
+                if rotation_result.get('rotated'):
+                    logger.info(f"  ✓ Symbols rotated:")
+                    logger.info(f"    Removed: {rotation_result.get('analysis', {}).get('removed_symbols', [])}")
+                    logger.info(f"    Added: {rotation_result.get('analysis', {}).get('added_symbols', [])}")
+                else:
+                    logger.info(f"  ○ Symbols unchanged: {rotation_result.get('reason')}")
+
+        except Exception as e:
+            logger.error(f"Error in auto-optimization: {e}", exc_info=True)
+            results['error'] = str(e)
+
+        return results
