@@ -102,17 +102,21 @@ class AdaptiveLearningEngine:
         Returns:
             Dictionary with learning results
         """
+        start_time = datetime.now()  # Track cycle duration
+
         logger.info("=" * 60)
         logger.info("STARTING LEARNING CYCLE")
         logger.info("=" * 60)
 
         results = {
-            'timestamp': datetime.now().isoformat(),
+            'timestamp': start_time.isoformat(),
             'success': False,
             'adaptations': [],
             'performance_analysis': {},
             'ml_training': {},
-            'errors': []
+            'errors': [],
+            'duration': 0,
+            'trades_analyzed': 0
         }
 
         try:
@@ -120,6 +124,10 @@ class AdaptiveLearningEngine:
             logger.info("Step 1: Analyzing performance...")
             performance = self.analyzer.analyze_indicator_performance()
             opportunities = self.analyzer.identify_learning_opportunities()
+
+            # Get number of trades analyzed
+            stats = self.db.get_performance_stats(days=7)
+            results['trades_analyzed'] = stats.get('total_trades', 0)
 
             results['performance_analysis'] = {
                 'indicator_performance': performance,
@@ -165,11 +173,16 @@ class AdaptiveLearningEngine:
             # Record learning event
             self._record_learning_event(results)
 
-            self.last_learning_update = datetime.now()
+            # Calculate cycle duration
+            end_time = datetime.now()
+            duration_seconds = (end_time - start_time).total_seconds()
+            results['duration'] = duration_seconds
+
+            self.last_learning_update = end_time
             self.last_learning_time = self.last_learning_update  # Sync alias
             results['success'] = True
 
-            logger.info("LEARNING CYCLE COMPLETED SUCCESSFULLY")
+            logger.info(f"LEARNING CYCLE COMPLETED SUCCESSFULLY (duration: {duration_seconds:.1f}s)")
             logger.info("=" * 60)
 
         except Exception as e:
