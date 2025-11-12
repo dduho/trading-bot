@@ -24,16 +24,18 @@ class MLOptimizer:
     Uses historical trade data to predict success probability and optimize parameters.
     """
 
-    def __init__(self, db, model_dir: str = "models"):
+    def __init__(self, db, model_dir: str = "models", config: dict = None):
         """
         Initialize ML optimizer.
 
         Args:
             db: TradeDatabase instance
             model_dir: Directory to save/load models
+            config: Bot configuration (optional, for reading current parameters)
         """
         self.db = db
         self.model_dir = model_dir
+        self.config = config or {}
         self.model = None
         self.scaler = StandardScaler()
         self.feature_names = []

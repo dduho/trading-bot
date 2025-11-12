@@ -106,7 +106,7 @@ class TradingBot:
 
         self.trade_db = TradeDatabase()
         self.perf_analyzer = PerformanceAnalyzer(self.trade_db)
-        self.ml_optimizer = MLOptimizer(self.trade_db)
+        self.ml_optimizer = MLOptimizer(self.trade_db, config=self.config)
         self.learning_engine = AdaptiveLearningEngine(
             self.trade_db,
             self.perf_analyzer,
