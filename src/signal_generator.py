@@ -299,6 +299,13 @@ class SignalGenerator:
         # Determine final signal with anti-trend low-confidence filter
         confidence = max(buy_score, sell_score)
         min_confidence = self.config['min_confidence']
+
+        # SAFETY: Cap min_confidence at 30% to prevent auto-optimization from blocking all trades
+        # Signals rarely exceed 30%, so higher thresholds are unrealistic
+        if min_confidence > 0.30:
+            logger.warning(f"⚠️ min_confidence too high ({min_confidence:.1%}), capping at 30%")
+            min_confidence = 0.30
+
         anti_cfg = self.config.get('anti_trend_filter', {})
         anti_enabled = anti_cfg.get('enabled', False)
         extra_margin = float(anti_cfg.get('extra_conf_margin', 0.0))
