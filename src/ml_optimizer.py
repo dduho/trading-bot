@@ -505,33 +505,38 @@ class MLOptimizer:
             sharpe_ratio = 0
             accuracy = 0
         
-        # Get learning cycles count from database
+        # Get learning cycles count from database (count learning_events)
         learning_cycles = 0
-        try:
-            perf_records = self.db.get_strategy_performance()
-            learning_cycles = len(perf_records)
-        except:
-            pass
-        
-        # Get current parameters (from database or defaults)
-        current_params = {
-            'rsi_period': 14,
-            'min_confidence': 0.6,
-            'stop_loss': 2.0,
-            'take_profit': 5.0
-        }
-        
-        # Last learning time
         last_learning = "Jamais"
-        if learning_cycles > 0:
-            try:
-                latest_perf = self.db.get_strategy_performance(limit=1)
-                if latest_perf:
-                    timestamp = latest_perf[0].get('timestamp')
-                    if timestamp:
-                        last_learning = datetime.fromisoformat(timestamp).strftime("%d/%m/%Y %H:%M")
-            except:
-                pass
+        try:
+            cursor = self.db.conn.cursor()
+            cursor.execute("SELECT COUNT(DISTINCT DATE(timestamp)) FROM learning_events")
+            result = cursor.fetchone()
+            if result:
+                learning_cycles = result[0]
+
+            # Get last learning time
+            cursor.execute("SELECT MAX(timestamp) FROM learning_events")
+            last_time = cursor.fetchone()
+            if last_time and last_time[0]:
+                from datetime import datetime
+                last_dt = datetime.fromisoformat(last_time[0])
+                last_learning = last_dt.strftime("%d/%m %H:%M")
+        except Exception as e:
+            logger.warning(f"Could not get learning cycles: {e}")
+
+        # Get current parameters from config (real values, updated by auto-optimization)
+        # min_confidence can be in 'strategy' (auto-optimization) or 'signal_generation' (legacy)
+        min_conf = self.config.get('strategy', {}).get('min_confidence')
+        if min_conf is None:
+            min_conf = self.config.get('signal_generation', {}).get('min_confidence', 0.6)
+
+        current_params = {
+            'rsi_period': self.config.get('technical_analysis', {}).get('rsi', {}).get('period', 14),
+            'min_confidence': min_conf,
+            'stop_loss': self.config.get('risk_management', {}).get('stop_loss_percent', 2.0),
+            'take_profit': self.config.get('risk_management', {}).get('take_profit_percent', 5.0)
+        }
         
         return {
             'accuracy': accuracy,
