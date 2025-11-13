@@ -114,6 +114,15 @@ class TradingBot:
             learning_config
         )
 
+        # Initialize Autonomous Watchdog (self-healing system)
+        try:
+            from autonomous_watchdog import AutonomousWatchdog
+            self.watchdog = AutonomousWatchdog(self.trade_db, self.config)
+            logger.info("🤖 Autonomous Watchdog enabled - Self-healing mode ACTIVE")
+        except Exception as e:
+            logger.error(f"Failed to initialize Autonomous Watchdog: {e}")
+            self.watchdog = None
+
         # Initialize Telegram notifications
         try:
             if self.config.get('notifications', {}).get('telegram', {}).get('enabled', False):
@@ -939,6 +948,25 @@ class TradingBot:
                 # Print status every 10 iterations
                 if iteration % 10 == 0:
                     self._print_status(analyses)
+
+                # Run autonomous watchdog health check (every 30 min)
+                if self.watchdog and self.watchdog.should_run_check():
+                    logger.info("🤖 Running autonomous health check...")
+                    health_report = self.watchdog.health_check()
+
+                    if not health_report['healthy']:
+                        logger.warning(f"⚠️ Health issues detected: {len(health_report['issues'])} problems")
+                        logger.warning(self.watchdog.get_status_report())
+
+                        # Send Telegram notification if issues detected
+                        if self.telegram and (health_report['issues'] or health_report['fixes_applied']):
+                            self._send_telegram_notification(
+                                self.telegram.send_info_notification(
+                                    f"🤖 *Watchdog Alert*\n\n{self.watchdog.get_status_report()}"
+                                )
+                            )
+                    else:
+                        logger.info("✅ Autonomous health check: All systems healthy")
 
                 # Wait for next update
                 logger.info(f"✓ Iteration {iteration} complete, waiting {self.update_interval}s for next update...")
