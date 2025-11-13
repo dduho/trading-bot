@@ -36,10 +36,10 @@ class DynamicConfidenceManager:
         self.target_win_rate = 0.55  # 55% target
         self.target_trades_per_day = 30  # Vise 30 trades/jour
         self.min_confidence = 0.03  # Minimum absolu: 3%
-        self.max_confidence = 0.25  # Maximum: 25% (signaux rarement > 30%)
+        self.max_confidence = 0.15  # Maximum: 15% (signaux typiquement 14-20%)
 
         # Ajustement graduel
-        self.adjustment_step = 0.01  # Ajuste par pas de 1% (plus conservateur)
+        self.adjustment_step = 0.005  # Ajuste par pas de 0.5% (très conservateur)
 
         logger.info("Dynamic Confidence Manager initialized")
 
@@ -137,13 +137,13 @@ class DynamicConfidenceManager:
 
         # EMERGENCY FIX: Si confidence est trop haute (> max), forcer un reset
         if current > self.max_confidence:
-            logger.warning(f"⚠️ CONFIDENCE TOO HIGH: {current:.1%} > max {self.max_confidence:.1%}! Forcing reset to 8%")
-            self.config['strategy']['min_confidence'] = 0.08
+            logger.warning(f"⚠️ CONFIDENCE TOO HIGH: {current:.1%} > max {self.max_confidence:.1%}! Forcing reset to 5%")
+            self.config['strategy']['min_confidence'] = 0.05
             return {
                 'adjusted': True,
                 'old_value': current,
-                'new_value': 0.08,
-                'change': 0.08 - current,
+                'new_value': 0.05,
+                'change': 0.05 - current,
                 'reason': f'EMERGENCY RESET: Confidence était à {current:.1%}, bien trop élevé (max: {self.max_confidence:.1%})'
             }
 
