@@ -339,13 +339,26 @@ class TradingBot:
                 'close': latest_row.get('close')
             }
 
-            # Enhance confidence with ML
-            ml_enhanced_confidence = self.learning_engine.get_ml_enhanced_signal_confidence(
-                signal_result, market_conditions
-            )
-            signal_result['ml_enhanced_confidence'] = ml_enhanced_confidence
-            signal_result['original_confidence'] = signal_result['confidence']
-            signal_result['confidence'] = ml_enhanced_confidence
+            # Enhance confidence with ML (DÉSACTIVÉ en phase apprentissage)
+            # Le ML avec win rate < 40% prédit toujours échec et bloque les trades
+            # On réactive quand le ML devient fiable (win rate > 40%)
+            stats = self.trade_db.get_performance_stats(days=7)
+            win_rate = stats.get('win_rate', 0)
+
+            if win_rate > 0.40:
+                # ML fiable → Utilise enhancement
+                ml_enhanced_confidence = self.learning_engine.get_ml_enhanced_signal_confidence(
+                    signal_result, market_conditions
+                )
+                signal_result['ml_enhanced_confidence'] = ml_enhanced_confidence
+                signal_result['original_confidence'] = signal_result['confidence']
+                signal_result['confidence'] = ml_enhanced_confidence
+                logger.debug(f"ML enhancement: {signal_result['original_confidence']:.2%} → {ml_enhanced_confidence:.2%}")
+            else:
+                # ML pas fiable → Garde confidence originale
+                signal_result['ml_enhanced_confidence'] = signal_result['confidence']
+                signal_result['original_confidence'] = signal_result['confidence']
+                logger.debug(f"ML enhancement DISABLED (WR {win_rate:.1%} < 40%) - using original confidence")
 
             return {
                 'symbol': symbol,
