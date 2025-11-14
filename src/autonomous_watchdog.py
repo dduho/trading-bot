@@ -111,12 +111,30 @@ class AutonomousWatchdog:
         if recent_count < self.min_trades_per_hour:
             logger.warning(f"⚠️ LOW TRADING ACTIVITY: Only {recent_count} trades in last hour (min: {self.min_trades_per_hour})")
 
-            # AUTO-FIX: Check if it's due to high confidence
+            # AUTO-FIX 1: Lower confidence to minimum
             current_conf = self.config.get('strategy', {}).get('min_confidence', 0.05)
-            if current_conf > 0.10:  # If confidence > 10%, likely the issue
-                logger.warning(f"🔧 AUTO-FIX: Lowering confidence from {current_conf:.1%} to 5% to restore trading")
-                self.config['strategy']['min_confidence'] = 0.05
-                self.auto_fixes_applied.append(f"Lowered confidence {current_conf:.1%} → 5%")
+            if current_conf > 0.03:  # If confidence > 3%, force to minimum
+                logger.warning(f"🔧 AUTO-FIX: EMERGENCY confidence reset {current_conf:.1%} → 3% to force trading")
+                self.config['strategy']['min_confidence'] = 0.03
+                self.auto_fixes_applied.append(f"EMERGENCY reset: confidence {current_conf:.1%} → 3%")
+                self.last_intervention = datetime.now()
+
+            # AUTO-FIX 2: Force close ALL open positions to free up space
+            open_positions = self.db.get_trade_history(limit=100, status='OPEN')
+            if open_positions:
+                logger.warning(f"🔧 AUTO-FIX: Force-closing ALL {len(open_positions)} positions to restart trading")
+                for pos in open_positions:
+                    now = datetime.now()
+                    self.db.update_trade(pos['id'], {
+                        'status': 'closed',
+                        'exit_price': pos['entry_price'],
+                        'exit_time': now,
+                        'pnl': 0,
+                        'pnl_percent': 0,
+                        'exit_reason': 'Watchdog: Emergency close - no trading activity',
+                        'duration_minutes': (now - datetime.fromisoformat(pos['entry_time'])).total_seconds() / 60
+                    })
+                self.auto_fixes_applied.append(f"Force-closed {len(open_positions)} positions (emergency restart)")
                 self.last_intervention = datetime.now()
 
             return f"Low trading activity: {recent_count} trades/hour (expected: ≥{self.min_trades_per_hour})"
