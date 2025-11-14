@@ -72,8 +72,8 @@ class DynamicConfidenceManager:
         reasons = []
         adjustment = 0
 
-        # 1. Win rate trop faible → AUGMENTER confidence
-        if win_rate < 0.45 and total_trades > 15:
+        # 1. Win rate trop faible → AUGMENTER confidence (SAUF si déjà proche du max)
+        if win_rate < 0.45 and total_trades > 15 and current_confidence < 0.08:
             adjustment += self.adjustment_step
             reasons.append(f"Win rate faible ({win_rate:.1%}) - augmente sélectivité")
 
@@ -87,21 +87,21 @@ class DynamicConfidenceManager:
             adjustment -= self.adjustment_step * 0.5
             reasons.append(f"Seulement {total_trades} trades/jour - augmente volume")
 
-        # 4. Trop de trades perdants d'affilée → AUGMENTER
+        # 4. Trop de trades perdants d'affilée → AUGMENTER (SAUF si déjà proche du max)
         recent_trades = self.db.get_recent_trades(limit=10)
         if len(recent_trades) >= 5:
             recent_losses = sum(1 for t in recent_trades[:5] if t.get('pnl', 0) < 0)
-            if recent_losses >= 4:
+            if recent_losses >= 4 and current_confidence < 0.08:
                 adjustment += self.adjustment_step * 1.5
                 reasons.append(f"{recent_losses}/5 derniers trades perdants - urgence")
 
-        # 5. Profit factor faible → AUGMENTER confidence
-        if profit_factor < 1.2 and total_trades > 20:
+        # 5. Profit factor faible → AUGMENTER confidence (SAUF si déjà proche du max)
+        if profit_factor < 1.2 and total_trades > 20 and current_confidence < 0.08:
             adjustment += self.adjustment_step * 0.5
             reasons.append(f"Profit factor faible ({profit_factor:.2f}) - améliore qualité")
 
-        # 6. PnL négatif significatif → AUGMENTER confidence
-        if total_pnl < -50:  # -$50 ou plus
+        # 6. PnL négatif significatif → AUGMENTER confidence (SAUF si déjà proche du max)
+        if total_pnl < -50 and current_confidence < 0.08:  # -$50 ou plus
             adjustment += self.adjustment_step * 2
             reasons.append(f"PnL négatif important (${total_pnl:.2f}) - mode défensif")
 
@@ -115,6 +115,12 @@ class DynamicConfidenceManager:
 
         # Limites
         new_confidence = max(self.min_confidence, min(self.max_confidence, new_confidence))
+
+        # Avertir si on atteint le plafond de sécurité
+        if new_confidence >= 0.08:
+            logger.warning(f"⚠️ Confidence proche du max sûr (8%) - arrêt des augmentations auto")
+            # Forcer à 8% max pour éviter de bloquer les trades (signaux sont 14-20%)
+            new_confidence = min(new_confidence, 0.08)
 
         # Si aucun changement significatif
         if abs(new_confidence - current_confidence) < 0.005:
