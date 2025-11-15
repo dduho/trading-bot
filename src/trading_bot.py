@@ -117,7 +117,7 @@ class TradingBot:
         # Initialize Autonomous Watchdog (self-healing system)
         try:
             from autonomous_watchdog import AutonomousWatchdog
-            self.watchdog = AutonomousWatchdog(self.trade_db, self.config)
+            self.watchdog = AutonomousWatchdog(self.trade_db, self.config, self.risk_manager)
             logger.info("🤖 Autonomous Watchdog enabled - Self-healing mode ACTIVE")
         except Exception as e:
             logger.error(f"Failed to initialize Autonomous Watchdog: {e}")
@@ -381,15 +381,21 @@ class TradingBot:
         Args:
             analysis: Analysis results from analyze_symbol
         """
+        logger.info(f"✅ DEBUG: execute_signal CALLED - analysis={bool(analysis)}, has_signal={'signal' in analysis if analysis else False}")
+
         if not analysis or 'signal' not in analysis:
+            logger.warning(f"⚠️ DEBUG: execute_signal RETURNING EARLY - analysis={bool(analysis)}")
             return
 
         symbol = analysis['symbol']
         signal = analysis['signal']
         price = analysis['price']
 
+        logger.info(f"📊 DEBUG: execute_signal processing {symbol} {signal['action']} (confidence: {signal['confidence']:.2%})")
+
         # Check if we can open a position
         can_open, reason = self.risk_manager.can_open_position(symbol)
+        logger.info(f"🔓 DEBUG: can_open={can_open}, reason={reason}")
 
         # BUY signal
         # If a SHORT is open for this symbol, close it on BUY
@@ -919,8 +925,12 @@ class TradingBot:
                     if analysis:
                         analyses.append(analysis)
                         # Execute signal if confidence is high enough
+                        logger.info(f"🔍 DEBUG: {symbol} action={analysis['signal']['action']} conf={analysis['signal']['confidence']:.2%}")
                         if analysis['signal']['action'] != 'HOLD':
+                            logger.info(f"🚀 DEBUG: Calling execute_signal for {symbol} {analysis['signal']['action']}")
                             self.execute_signal(analysis)
+                        else:
+                            logger.info(f"⏸️ DEBUG: Skipping {symbol} - action is HOLD")
 
                 # Update existing positions
                 self.update_positions()

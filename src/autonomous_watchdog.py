@@ -27,16 +27,18 @@ class AutonomousWatchdog:
     - Adjusts parameters if performance drops
     """
 
-    def __init__(self, db: TradeDatabase, config: dict):
+    def __init__(self, db: TradeDatabase, config: dict, risk_manager=None):
         """
         Initialize the autonomous watchdog.
 
         Args:
             db: TradeDatabase instance
             config: Bot configuration
+            risk_manager: RiskManager instance (for clearing phantom positions)
         """
         self.db = db
         self.config = config
+        self.risk_manager = risk_manager
 
         # Thresholds for detection
         self.min_trades_per_hour = 2  # Minimum acceptable trading frequency
@@ -63,6 +65,11 @@ class AutonomousWatchdog:
         now = datetime.now()
         self.issues_detected = []
         self.auto_fixes_applied = []
+
+        # Check 0: Clear phantom positions (positions in risk_manager but not in DB)
+        phantom_issue = self._clear_phantom_positions()
+        if phantom_issue:
+            self.issues_detected.append(phantom_issue)
 
         # Check 1: Trading activity
         trading_issue = self._check_trading_activity()
@@ -92,6 +99,40 @@ class AutonomousWatchdog:
             'issues': self.issues_detected,
             'fixes_applied': self.auto_fixes_applied
         }
+
+    def _clear_phantom_positions(self) -> Optional[str]:
+        """
+        Clear phantom positions (exist in risk_manager but not in database as OPEN).
+
+        Returns:
+            Issue description if phantoms detected, None otherwise
+        """
+        if not self.risk_manager:
+            return None
+
+        # Get open positions from database
+        db_open_positions = self.db.get_trade_history(limit=100, status='OPEN')
+        db_open_symbols = {pos['symbol'] for pos in db_open_positions}
+
+        # Get positions from risk_manager
+        rm_positions = list(self.risk_manager.positions.keys())
+
+        # Find phantoms: in risk_manager but not in DB
+        phantoms = [symbol for symbol in rm_positions if symbol not in db_open_symbols]
+
+        if phantoms:
+            logger.warning(f"⚠️ PHANTOM POSITIONS DETECTED: {len(phantoms)} positions in memory but not in DB: {phantoms}")
+
+            for symbol in phantoms:
+                logger.warning(f"🧹 AUTO-FIX: Clearing phantom position {symbol} from risk_manager")
+                # Force close in risk_manager (doesn't matter what price, it's phantom)
+                self.risk_manager.close_position(symbol, 0, 'Watchdog: Phantom position cleared')
+                self.auto_fixes_applied.append(f"Cleared phantom position: {symbol}")
+
+            self.last_intervention = datetime.now()
+            return f"{len(phantoms)} phantom positions cleared: {', '.join(phantoms)}"
+
+        return None
 
     def _check_trading_activity(self) -> Optional[str]:
         """
@@ -125,6 +166,9 @@ class AutonomousWatchdog:
                 logger.warning(f"🔧 AUTO-FIX: Force-closing ALL {len(open_positions)} positions to restart trading")
                 for pos in open_positions:
                     now = datetime.now()
+                    symbol = pos['symbol']
+
+                    # Close in database
                     self.db.update_trade(pos['id'], {
                         'status': 'closed',
                         'exit_price': pos['entry_price'],
@@ -134,6 +178,12 @@ class AutonomousWatchdog:
                         'exit_reason': 'Watchdog: Emergency close - no trading activity',
                         'duration_minutes': (now - datetime.fromisoformat(pos['entry_time'])).total_seconds() / 60
                     })
+
+                    # CRITICAL: Also clear from risk_manager to avoid phantom positions
+                    if self.risk_manager and symbol in self.risk_manager.positions:
+                        logger.warning(f"🧹 Clearing phantom position from risk_manager: {symbol}")
+                        self.risk_manager.close_position(symbol, pos['entry_price'], 'Watchdog: Emergency close')
+
                 self.auto_fixes_applied.append(f"Force-closed {len(open_positions)} positions (emergency restart)")
 
             return f"Low trading activity: {recent_count} trades/hour (expected: ≥{self.min_trades_per_hour})"
