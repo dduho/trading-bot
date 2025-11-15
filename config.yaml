@@ -63,7 +63,7 @@ risk:
   risk_reward_ratio: 3.0          # Ratio conservateur
   max_open_positions: 8           # ULTRA AGRESSIF: 8 positions pour apprentissage accéléré!
   max_daily_trades: 80            # ULTRA AGRESSIF: 80 trades/jour - apprentissage ultra rapide!
-  max_daily_loss_percent: 8.0     # ULTRA AGRESSIF: 8% de perte max (bot est rentable!)
+  max_daily_loss_percent: 15.0    # ULTRA AGRESSIF: 15% de perte max
   cooldown_seconds: 45            # ULTRA RÉDUIT: 45s entre trades
 
 # Execution settings
