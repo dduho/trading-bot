@@ -1,0 +1,200 @@
+2025-11-15 11:55:40,737 - technical_analysis - INFO - Calculated 18 technical indicators
+2025-11-15 11:55:40,738 - signal_generator - INFO - Generated signal: SELL (confidence: 14.95%)
+2025-11-15 11:55:40,740 - trading_bot - INFO - Maintaining existing SHORT on AVAX/USDT; SELL signal reaffirmed.
+2025-11-15 11:55:40,972 - market_data - INFO - Fetched 100 candles for MATIC/USDT (1m)
+2025-11-15 11:55:40,984 - technical_analysis - INFO - Calculated 18 technical indicators
+2025-11-15 11:55:40,985 - signal_generator - INFO - Generated signal: BUY (confidence: 14.38%)
+2025-11-15 11:55:41,227 - market_data - INFO - Fetched 100 candles for DOGE/USDT (1m)
+2025-11-15 11:55:41,238 - technical_analysis - INFO - Calculated 18 technical indicators
+2025-11-15 11:55:41,240 - signal_generator - INFO - Generated signal: SELL (confidence: 14.16%)
+2025-11-15 11:55:41,241 - trading_bot - INFO - Maintaining existing SHORT on DOGE/USDT; SELL signal reaffirmed.
+2025-11-15 11:55:41,477 - market_data - INFO - Fetched 100 candles for ADA/USDT (1m)
+2025-11-15 11:55:41,489 - technical_analysis - INFO - Calculated 18 technical indicators
+2025-11-15 11:55:41,491 - signal_generator - INFO - Generated signal: SELL (confidence: 14.89%)
+2025-11-15 11:55:41,492 - trading_bot - INFO - Maintaining existing SHORT on ADA/USDT; SELL signal reaffirmed.
+2025-11-15 11:55:42,656 - trading_bot - INFO - ✓ Iteration 32 complete, waiting 15s for next update...
+2025-11-15 11:55:42,657 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8243134407:AAFboClTP0SUpN7qAd68OCRlgHNIA8v3JuI/getUpdates "HTTP/1.1 200 OK"
+2025-11-15 11:55:52,666 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8243134407:AAFboClTP0SUpN7qAd68OCRlgHNIA8v3JuI/getUpdates "HTTP/1.1 200 OK"
+2025-11-15 11:55:57,662 - trading_bot - INFO - ⏰ Woke up from sleep, starting iteration 33
+2025-11-15 11:55:57,906 - market_data - INFO - Fetched 100 candles for SOL/USDT (1m)
+2025-11-15 11:55:57,917 - technical_analysis - INFO - Calculated 18 technical indicators
+2025-11-15 11:55:57,918 - signal_generator - INFO - Generated signal: SELL (confidence: 14.97%)
+2025-11-15 11:55:57,920 - trading_bot - INFO - Maintaining existing SHORT on SOL/USDT; SELL signal reaffirmed.
+2025-11-15 11:55:58,156 - market_data - INFO - Fetched 100 candles for AVAX/USDT (1m)
+2025-11-15 11:55:58,168 - technical_analysis - INFO - Calculated 18 technical indicators
+2025-11-15 11:55:58,169 - signal_generator - INFO - Generated signal: SELL (confidence: 14.95%)
+2025-11-15 11:55:58,170 - trading_bot - INFO - Maintaining existing SHORT on AVAX/USDT; SELL signal reaffirmed.
+2025-11-15 11:55:58,410 - market_data - INFO - Fetched 100 candles for MATIC/USDT (1m)
+2025-11-15 11:55:58,421 - technical_analysis - INFO - Calculated 18 technical indicators
+2025-11-15 11:55:58,423 - signal_generator - INFO - Generated signal: BUY (confidence: 14.38%)
+2025-11-15 11:55:58,661 - market_data - INFO - Fetched 100 candles for DOGE/USDT (1m)
+2025-11-15 11:55:58,672 - technical_analysis - INFO - Calculated 18 technical indicators
+2025-11-15 11:55:58,673 - signal_generator - INFO - Generated signal: SELL (confidence: 24.50%)
+2025-11-15 11:55:58,675 - trading_bot - INFO - Maintaining existing SHORT on DOGE/USDT; SELL signal reaffirmed.
+2025-11-15 11:55:58,917 - market_data - INFO - Fetched 100 candles for ADA/USDT (1m)
+2025-11-15 11:55:58,928 - technical_analysis - INFO - Calculated 18 technical indicators
+2025-11-15 11:55:58,929 - signal_generator - INFO - Generated signal: SELL (confidence: 14.89%)
+2025-11-15 11:55:58,930 - trading_bot - INFO - Maintaining existing SHORT on ADA/USDT; SELL signal reaffirmed.
+2025-11-15 11:56:00,143 - trading_bot - INFO - ✓ Iteration 33 complete, waiting 15s for next update...
+2025-11-15 11:56:02,676 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8243134407:AAFboClTP0SUpN7qAd68OCRlgHNIA8v3JuI/getUpdates "HTTP/1.1 200 OK"
+2025-11-15 11:56:12,688 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8243134407:AAFboClTP0SUpN7qAd68OCRlgHNIA8v3JuI/getUpdates "HTTP/1.1 200 OK"
+2025-11-15 11:56:15,147 - trading_bot - INFO - ⏰ Woke up from sleep, starting iteration 34
+2025-11-15 11:56:15,388 - market_data - INFO - Fetched 100 candles for SOL/USDT (1m)
+2025-11-15 11:56:15,399 - technical_analysis - INFO - Calculated 18 technical indicators
+2025-11-15 11:56:15,400 - signal_generator - INFO - Generated signal: SELL (confidence: 14.97%)
+2025-11-15 11:56:15,402 - trading_bot - INFO - Maintaining existing SHORT on SOL/USDT; SELL signal reaffirmed.
+2025-11-15 11:56:15,642 - market_data - INFO - Fetched 100 candles for AVAX/USDT (1m)
+2025-11-15 11:56:15,653 - technical_analysis - INFO - Calculated 18 technical indicators
+2025-11-15 11:56:15,655 - signal_generator - INFO - Generated signal: SELL (confidence: 14.98%)
+2025-11-15 11:56:15,656 - trading_bot - INFO - Maintaining existing SHORT on AVAX/USDT; SELL signal reaffirmed.
+2025-11-15 11:56:15,894 - market_data - INFO - Fetched 100 candles for MATIC/USDT (1m)
+2025-11-15 11:56:15,905 - technical_analysis - INFO - Calculated 18 technical indicators
+2025-11-15 11:56:15,907 - signal_generator - INFO - Generated signal: BUY (confidence: 14.38%)
+2025-11-15 11:56:16,155 - market_data - INFO - Fetched 100 candles for DOGE/USDT (1m)
+2025-11-15 11:56:16,167 - technical_analysis - INFO - Calculated 18 technical indicators
+2025-11-15 11:56:16,168 - signal_generator - INFO - Generated signal: SELL (confidence: 14.20%)
+2025-11-15 11:56:16,170 - trading_bot - INFO - Maintaining existing SHORT on DOGE/USDT; SELL signal reaffirmed.
+2025-11-15 11:56:16,408 - market_data - INFO - Fetched 100 candles for ADA/USDT (1m)
+2025-11-15 11:56:16,419 - technical_analysis - INFO - Calculated 18 technical indicators
+2025-11-15 11:56:16,420 - signal_generator - INFO - Generated signal: SELL (confidence: 25.12%)
+2025-11-15 11:56:16,422 - trading_bot - INFO - Maintaining existing SHORT on ADA/USDT; SELL signal reaffirmed.
+2025-11-15 11:56:17,602 - trading_bot - INFO - ✓ Iteration 34 complete, waiting 15s for next update...
+2025-11-15 11:56:22,701 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8243134407:AAFboClTP0SUpN7qAd68OCRlgHNIA8v3JuI/getUpdates "HTTP/1.1 200 OK"
+2025-11-15 11:56:32,604 - trading_bot - INFO - ⏰ Woke up from sleep, starting iteration 35
+2025-11-15 11:56:32,842 - market_data - INFO - Fetched 100 candles for SOL/USDT (1m)
+2025-11-15 11:56:32,854 - technical_analysis - INFO - Calculated 18 technical indicators
+2025-11-15 11:56:32,855 - signal_generator - INFO - Generated signal: SELL (confidence: 14.95%)
+2025-11-15 11:56:32,857 - trading_bot - INFO - Maintaining existing SHORT on SOL/USDT; SELL signal reaffirmed.
+2025-11-15 11:56:33,096 - market_data - INFO - Fetched 100 candles for AVAX/USDT (1m)
+2025-11-15 11:56:33,106 - technical_analysis - INFO - Calculated 18 technical indicators
+2025-11-15 11:56:33,108 - signal_generator - INFO - Generated signal: SELL (confidence: 14.97%)
+2025-11-15 11:56:33,109 - trading_bot - INFO - Maintaining existing SHORT on AVAX/USDT; SELL signal reaffirmed.
+2025-11-15 11:56:33,350 - market_data - INFO - Fetched 100 candles for MATIC/USDT (1m)
+2025-11-15 11:56:33,361 - technical_analysis - INFO - Calculated 18 technical indicators
+2025-11-15 11:56:33,363 - signal_generator - INFO - Generated signal: BUY (confidence: 14.38%)
+2025-11-15 11:56:33,604 - market_data - INFO - Fetched 100 candles for DOGE/USDT (1m)
+2025-11-15 11:56:33,616 - technical_analysis - INFO - Calculated 18 technical indicators
+2025-11-15 11:56:33,618 - signal_generator - INFO - Generated signal: SELL (confidence: 14.19%)
+2025-11-15 11:56:33,619 - trading_bot - INFO - Maintaining existing SHORT on DOGE/USDT; SELL signal reaffirmed.
+2025-11-15 11:56:33,858 - market_data - INFO - Fetched 100 candles for ADA/USDT (1m)
+2025-11-15 11:56:33,869 - technical_analysis - INFO - Calculated 18 technical indicators
+2025-11-15 11:56:33,870 - signal_generator - INFO - Generated signal: BUY (confidence: 16.51%)
+2025-11-15 11:56:33,871 - order_executor - INFO - Creating BUY limit order: 398.88312724371764 ADA/USDT @ $0.5014
+2025-11-15 11:56:34,111 - order_executor - INFO - ✅ PAPER ORDER executed: BUY 398.88312724371764 ADA/USDT @ $0.5014
+2025-11-15 11:56:34,111 - order_executor - INFO -    Paper balance: {'USDT': np.float64(10599.891405222652), 'SOL': np.float64(-1.4268388385531856), 'AVAX': np.float64(-12.944983818770227), 'DOGE': np.float64(-1237.4706100730107), 'ADA': np.float64(0.0)}
+2025-11-15 11:56:34,111 - risk_manager - INFO - Closed position: ADA/USDT @ 0.5014 | PnL: $0.00 | Reason: Signal: BUY (close short)
+2025-11-15 11:56:34,117 - trade_database - INFO - Trade 593 updated
+2025-11-15 11:56:35,061 - trading_bot - INFO - ✓ Iteration 35 complete, waiting 15s for next update...
+2025-11-15 11:56:35,062 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8243134407:AAFboClTP0SUpN7qAd68OCRlgHNIA8v3JuI/getUpdates "HTTP/1.1 200 OK"
+2025-11-15 11:56:45,070 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8243134407:AAFboClTP0SUpN7qAd68OCRlgHNIA8v3JuI/getUpdates "HTTP/1.1 200 OK"
+2025-11-15 11:56:50,067 - trading_bot - INFO - ⏰ Woke up from sleep, starting iteration 36
+2025-11-15 11:56:50,307 - market_data - INFO - Fetched 100 candles for SOL/USDT (1m)
+2025-11-15 11:56:50,323 - technical_analysis - INFO - Calculated 18 technical indicators
+2025-11-15 11:56:50,325 - signal_generator - INFO - Generated signal: SELL (confidence: 14.94%)
+2025-11-15 11:56:50,327 - trading_bot - INFO - Maintaining existing SHORT on SOL/USDT; SELL signal reaffirmed.
+2025-11-15 11:56:50,573 - market_data - INFO - Fetched 100 candles for AVAX/USDT (1m)
+2025-11-15 11:56:50,601 - technical_analysis - INFO - Calculated 18 technical indicators
+2025-11-15 11:56:50,602 - signal_generator - INFO - Generated signal: BUY (confidence: 24.00%)
+2025-11-15 11:56:50,604 - order_executor - INFO - Creating BUY limit order: 12.944983818770227 AVAX/USDT @ $15.45
+2025-11-15 11:56:50,844 - order_executor - INFO - ✅ PAPER ORDER executed: BUY 12.944983818770227 AVAX/USDT @ $15.45
+2025-11-15 11:56:50,844 - order_executor - INFO -    Paper balance: {'USDT': np.float64(10399.891405222652), 'SOL': np.float64(-1.4268388385531856), 'AVAX': np.float64(0.0), 'DOGE': np.float64(-1237.4706100730107), 'ADA': np.float64(0.0)}
+2025-11-15 11:56:50,844 - risk_manager - INFO - Closed position: AVAX/USDT @ 15.45 | PnL: $0.00 | Reason: Signal: BUY (close short)
+2025-11-15 11:56:51,698 - trade_database - INFO - Trade 587 updated
+2025-11-15 11:56:51,941 - market_data - INFO - Fetched 100 candles for MATIC/USDT (1m)
+2025-11-15 11:56:51,956 - technical_analysis - INFO - Calculated 18 technical indicators
+2025-11-15 11:56:51,958 - signal_generator - INFO - Generated signal: BUY (confidence: 14.38%)
+2025-11-15 11:56:52,207 - market_data - INFO - Fetched 100 candles for DOGE/USDT (1m)
+2025-11-15 11:56:52,222 - technical_analysis - INFO - Calculated 18 technical indicators
+2025-11-15 11:56:52,224 - signal_generator - INFO - Generated signal: SELL (confidence: 14.19%)
+2025-11-15 11:56:52,226 - trading_bot - INFO - Maintaining existing SHORT on DOGE/USDT; SELL signal reaffirmed.
+2025-11-15 11:56:52,468 - market_data - INFO - Fetched 100 candles for ADA/USDT (1m)
+2025-11-15 11:56:52,483 - technical_analysis - INFO - Calculated 18 technical indicators
+2025-11-15 11:56:52,485 - signal_generator - INFO - Generated signal: BUY (confidence: 16.82%)
+2025-11-15 11:56:53,191 - trading_bot - INFO - ✓ Iteration 36 complete, waiting 15s for next update...
+2025-11-15 11:56:55,083 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8243134407:AAFboClTP0SUpN7qAd68OCRlgHNIA8v3JuI/getUpdates "HTTP/1.1 200 OK"
+2025-11-15 11:57:05,094 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8243134407:AAFboClTP0SUpN7qAd68OCRlgHNIA8v3JuI/getUpdates "HTTP/1.1 200 OK"
+2025-11-15 11:57:08,195 - trading_bot - INFO - ⏰ Woke up from sleep, starting iteration 37
+2025-11-15 11:57:08,438 - market_data - INFO - Fetched 100 candles for SOL/USDT (1m)
+2025-11-15 11:57:08,449 - technical_analysis - INFO - Calculated 18 technical indicators
+2025-11-15 11:57:08,451 - signal_generator - INFO - Generated signal: BUY (confidence: 19.14%)
+2025-11-15 11:57:08,452 - order_executor - INFO - Creating BUY limit order: 1.4268388385531856 SOL/USDT @ $140.14
+2025-11-15 11:57:08,687 - order_executor - INFO - ✅ PAPER ORDER executed: BUY 1.4268388385531856 SOL/USDT @ $140.14
+2025-11-15 11:57:08,687 - order_executor - INFO -    Paper balance: {'USDT': np.float64(10199.934210387808), 'SOL': np.float64(0.0), 'AVAX': np.float64(0.0), 'DOGE': np.float64(-1237.4706100730107), 'ADA': np.float64(0.0)}
+2025-11-15 11:57:08,688 - risk_manager - INFO - Closed position: SOL/USDT @ 140.14 | PnL: $0.04 | Reason: Signal: BUY (close short)
+2025-11-15 11:57:08,694 - trade_database - INFO - Trade 586 updated
+2025-11-15 11:57:08,935 - market_data - INFO - Fetched 100 candles for AVAX/USDT (1m)
+2025-11-15 11:57:08,946 - technical_analysis - INFO - Calculated 18 technical indicators
+2025-11-15 11:57:08,948 - signal_generator - INFO - Generated signal: SELL (confidence: 15.00%)
+2025-11-15 11:57:09,189 - market_data - INFO - Fetched 100 candles for MATIC/USDT (1m)
+2025-11-15 11:57:09,200 - technical_analysis - INFO - Calculated 18 technical indicators
+2025-11-15 11:57:09,201 - signal_generator - INFO - Generated signal: BUY (confidence: 14.38%)
+2025-11-15 11:57:09,446 - market_data - INFO - Fetched 100 candles for DOGE/USDT (1m)
+2025-11-15 11:57:09,457 - technical_analysis - INFO - Calculated 18 technical indicators
+2025-11-15 11:57:09,459 - signal_generator - INFO - Generated signal: BUY (confidence: 24.00%)
+2025-11-15 11:57:09,460 - order_executor - INFO - Creating BUY limit order: 1237.4706100730107 DOGE/USDT @ $0.16168
+2025-11-15 11:57:09,692 - order_executor - INFO - ✅ PAPER ORDER executed: BUY 1237.4706100730107 DOGE/USDT @ $0.16168
+2025-11-15 11:57:09,692 - order_executor - INFO -    Paper balance: {'USDT': np.float64(9999.859962151204), 'SOL': np.float64(0.0), 'AVAX': np.float64(0.0), 'DOGE': np.float64(0.0), 'ADA': np.float64(0.0)}
+2025-11-15 11:57:09,693 - risk_manager - INFO - Closed position: DOGE/USDT @ 0.16168 | PnL: $-0.07 | Reason: Signal: BUY (close short)
+2025-11-15 11:57:09,699 - trade_database - INFO - Trade 592 updated
+2025-11-15 11:57:09,940 - market_data - INFO - Fetched 100 candles for ADA/USDT (1m)
+2025-11-15 11:57:09,951 - technical_analysis - INFO - Calculated 18 technical indicators
+2025-11-15 11:57:09,952 - signal_generator - INFO - Generated signal: SELL (confidence: 14.99%)
+2025-11-15 11:57:10,187 - trading_bot - INFO - ✓ Iteration 37 complete, waiting 15s for next update...
+2025-11-15 11:57:15,104 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8243134407:AAFboClTP0SUpN7qAd68OCRlgHNIA8v3JuI/getUpdates "HTTP/1.1 200 OK"
+2025-11-15 11:57:25,115 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8243134407:AAFboClTP0SUpN7qAd68OCRlgHNIA8v3JuI/getUpdates "HTTP/1.1 200 OK"
+2025-11-15 11:57:25,187 - trading_bot - INFO - ⏰ Woke up from sleep, starting iteration 38
+2025-11-15 11:57:25,429 - market_data - INFO - Fetched 100 candles for SOL/USDT (1m)
+2025-11-15 11:57:25,440 - technical_analysis - INFO - Calculated 18 technical indicators
+2025-11-15 11:57:25,442 - signal_generator - INFO - Generated signal: BUY (confidence: 19.14%)
+2025-11-15 11:57:25,690 - market_data - INFO - Fetched 100 candles for AVAX/USDT (1m)
+2025-11-15 11:57:25,701 - technical_analysis - INFO - Calculated 18 technical indicators
+2025-11-15 11:57:25,702 - signal_generator - INFO - Generated signal: SELL (confidence: 15.00%)
+2025-11-15 11:57:25,941 - market_data - INFO - Fetched 100 candles for MATIC/USDT (1m)
+2025-11-15 11:57:25,953 - technical_analysis - INFO - Calculated 18 technical indicators
+2025-11-15 11:57:25,954 - signal_generator - INFO - Generated signal: BUY (confidence: 14.38%)
+2025-11-15 11:57:26,192 - market_data - INFO - Fetched 100 candles for DOGE/USDT (1m)
+2025-11-15 11:57:26,203 - technical_analysis - INFO - Calculated 18 technical indicators
+2025-11-15 11:57:26,204 - signal_generator - INFO - Generated signal: BUY (confidence: 24.00%)
+2025-11-15 11:57:26,450 - market_data - INFO - Fetched 100 candles for ADA/USDT (1m)
+2025-11-15 11:57:26,461 - technical_analysis - INFO - Calculated 18 technical indicators
+2025-11-15 11:57:26,462 - signal_generator - INFO - Generated signal: BUY (confidence: 20.22%)
+2025-11-15 11:57:26,464 - risk_manager - INFO - Calculated position size: 398.7241 (value: $200.00)
+2025-11-15 11:57:26,464 - order_executor - INFO - Creating BUY limit order: 398.7240829346092 ADA/USDT @ $0.5016
+2025-11-15 11:57:26,699 - order_executor - INFO - ✅ PAPER ORDER executed: BUY 398.7240829346092 ADA/USDT @ $0.5016
+2025-11-15 11:57:26,699 - order_executor - INFO -    Paper balance: {'USDT': np.float64(9799.859962151204), 'SOL': np.float64(0.0), 'AVAX': np.float64(0.0), 'DOGE': np.float64(0.0), 'ADA': np.float64(398.7240829346092)}
+2025-11-15 11:57:26,700 - risk_manager - INFO - Opened long position: ADA/USDT @ 0.5016 (qty: 398.7240829346092)
+2025-11-15 11:57:26,705 - trade_database - INFO - Trade recorded: ID=594, Symbol=ADA/USDT, Side=long
+2025-11-15 11:57:27,898 - trading_bot - INFO - 📤 Tentative d'envoi notification Telegram...
+2025-11-15 11:57:28,050 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8243134407:AAFboClTP0SUpN7qAd68OCRlgHNIA8v3JuI/sendMessage "HTTP/1.1 200 OK"
+2025-11-15 11:57:28,052 - telegram_notifier - INFO - Telegram notification sent successfully
+2025-11-15 11:57:28,053 - trading_bot - INFO - ✅ Notification Telegram envoyée avec succès
+2025-11-15 11:57:28,529 - trading_bot - INFO - ✓ Iteration 38 complete, waiting 15s for next update...
+2025-11-15 11:57:35,124 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8243134407:AAFboClTP0SUpN7qAd68OCRlgHNIA8v3JuI/getUpdates "HTTP/1.1 200 OK"
+2025-11-15 11:57:43,538 - trading_bot - INFO - ⏰ Woke up from sleep, starting iteration 39
+2025-11-15 11:57:43,786 - market_data - INFO - Fetched 100 candles for SOL/USDT (1m)
+2025-11-15 11:57:43,797 - technical_analysis - INFO - Calculated 18 technical indicators
+2025-11-15 11:57:43,798 - signal_generator - INFO - Generated signal: BUY (confidence: 24.00%)
+2025-11-15 11:57:44,042 - market_data - INFO - Fetched 100 candles for AVAX/USDT (1m)
+2025-11-15 11:57:44,053 - technical_analysis - INFO - Calculated 18 technical indicators
+2025-11-15 11:57:44,054 - signal_generator - INFO - Generated signal: SELL (confidence: 15.00%)
+2025-11-15 11:57:44,056 - risk_manager - INFO - Calculated position size: 12.9450 (value: $200.00)
+2025-11-15 11:57:44,056 - order_executor - INFO - Creating SELL limit order: 12.944983818770227 AVAX/USDT @ $15.45
+2025-11-15 11:57:44,292 - order_executor - INFO - ✅ PAPER ORDER executed: SELL 12.944983818770227 AVAX/USDT @ $15.45
+2025-11-15 11:57:44,292 - order_executor - INFO -    Paper balance: {'USDT': np.float64(9999.859962151204), 'SOL': np.float64(0.0), 'AVAX': np.float64(-12.944983818770227), 'DOGE': np.float64(0.0), 'ADA': np.float64(398.7240829346092)}
+2025-11-15 11:57:44,292 - risk_manager - INFO - Opened short position: AVAX/USDT @ 15.45 (qty: 12.944983818770227)
+2025-11-15 11:57:44,300 - trade_database - INFO - Trade recorded: ID=595, Symbol=AVAX/USDT, Side=short
+2025-11-15 11:57:45,507 - trading_bot - INFO - 📤 Tentative d'envoi notification Telegram...
+2025-11-15 11:57:45,645 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8243134407:AAFboClTP0SUpN7qAd68OCRlgHNIA8v3JuI/sendMessage "HTTP/1.1 200 OK"
+2025-11-15 11:57:45,646 - telegram_notifier - INFO - Telegram notification sent successfully
+2025-11-15 11:57:45,647 - trading_bot - INFO - ✅ Notification Telegram envoyée avec succès
+2025-11-15 11:57:45,888 - market_data - INFO - Fetched 100 candles for MATIC/USDT (1m)
+2025-11-15 11:57:45,899 - technical_analysis - INFO - Calculated 18 technical indicators
+2025-11-15 11:57:45,900 - signal_generator - INFO - Generated signal: BUY (confidence: 14.38%)
+2025-11-15 11:57:46,149 - market_data - INFO - Fetched 100 candles for DOGE/USDT (1m)
+2025-11-15 11:57:46,160 - technical_analysis - INFO - Calculated 18 technical indicators
+2025-11-15 11:57:46,164 - signal_generator - INFO - Generated signal: BUY (confidence: 24.00%)
+2025-11-15 11:57:46,403 - market_data - INFO - Fetched 100 candles for ADA/USDT (1m)
+2025-11-15 11:57:46,414 - technical_analysis - INFO - Calculated 18 technical indicators
+2025-11-15 11:57:46,416 - signal_generator - INFO - Generated signal: BUY (confidence: 24.00%)
+2025-11-15 11:57:47,131 - trading_bot - INFO - ✓ Iteration 39 complete, waiting 15s for next update...
+2025-11-15 11:57:47,132 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8243134407:AAFboClTP0SUpN7qAd68OCRlgHNIA8v3JuI/getUpdates "HTTP/1.1 200 OK"
