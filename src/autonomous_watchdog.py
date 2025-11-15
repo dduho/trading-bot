@@ -111,13 +111,13 @@ class AutonomousWatchdog:
         if recent_count < self.min_trades_per_hour:
             logger.warning(f"⚠️ LOW TRADING ACTIVITY: Only {recent_count} trades in last hour (min: {self.min_trades_per_hour})")
 
-            # AUTO-FIX 1: Lower confidence to minimum
+            # AUTO-FIX 1: TOUJOURS forcer confidence à 3% (même si déjà à 3%)
+            # Car le ML peut l'avoir remonté entre les checks
             current_conf = self.config.get('strategy', {}).get('min_confidence', 0.05)
-            if current_conf > 0.03:  # If confidence > 3%, force to minimum
-                logger.warning(f"🔧 AUTO-FIX: EMERGENCY confidence reset {current_conf:.1%} → 3% to force trading")
-                self.config['strategy']['min_confidence'] = 0.03
-                self.auto_fixes_applied.append(f"EMERGENCY reset: confidence {current_conf:.1%} → 3%")
-                self.last_intervention = datetime.now()
+            logger.warning(f"🔧 AUTO-FIX: FORCE confidence {current_conf:.1%} → 3% (emergency restart)")
+            self.config['strategy']['min_confidence'] = 0.03
+            self.auto_fixes_applied.append(f"FORCE reset: confidence {current_conf:.1%} → 3%")
+            self.last_intervention = datetime.now()
 
             # AUTO-FIX 2: Force close ALL open positions to free up space
             open_positions = self.db.get_trade_history(limit=100, status='OPEN')
@@ -135,7 +135,6 @@ class AutonomousWatchdog:
                         'duration_minutes': (now - datetime.fromisoformat(pos['entry_time'])).total_seconds() / 60
                     })
                 self.auto_fixes_applied.append(f"Force-closed {len(open_positions)} positions (emergency restart)")
-                self.last_intervention = datetime.now()
 
             return f"Low trading activity: {recent_count} trades/hour (expected: ≥{self.min_trades_per_hour})"
 
