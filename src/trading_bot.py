@@ -114,6 +114,11 @@ class TradingBot:
             learning_config
         )
 
+        # Initialize Intelligent Filter (reduce bad trades)
+        from intelligent_filter import IntelligentFilter
+        self.intelligent_filter = IntelligentFilter(self.trade_db, self.config)
+        logger.info("🧠 Intelligent Filter initialized - Quality-focused trading ACTIVE")
+
         # Initialize Autonomous Watchdog (self-healing system)
         try:
             from autonomous_watchdog import AutonomousWatchdog
@@ -392,6 +397,16 @@ class TradingBot:
         price = analysis['price']
 
         logger.info(f"📊 DEBUG: execute_signal processing {symbol} {signal['action']} (confidence: {signal['confidence']:.2%})")
+
+        # Intelligent Filter: Skip low-quality setups
+        should_trade, filter_reason = self.intelligent_filter.should_take_trade(
+            signal,
+            analysis.get('market_conditions', {}),
+            symbol
+        )
+        if not should_trade:
+            logger.info(f"🧠 FILTERED OUT: {symbol} - {filter_reason}")
+            return
 
         # Check if we can open a position
         can_open, reason = self.risk_manager.can_open_position(symbol)
