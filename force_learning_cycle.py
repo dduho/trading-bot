@@ -6,10 +6,10 @@ Permet de tester et valider que le système d'apprentissage continu fonctionne
 import sys
 sys.path.append('src')
 
-from trade_database import TradeDatabase
-from performance_analyzer import PerformanceAnalyzer
-from ml_optimizer import MLOptimizer
-from learning_engine import AdaptiveLearningEngine
+from src.trade_database import TradeDatabase
+from src.performance_analyzer import PerformanceAnalyzer
+from src.ml_optimizer import MLOptimizer
+from src.learning_engine import AdaptiveLearningEngine
 import yaml
 import os
 from datetime import datetime

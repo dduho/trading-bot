@@ -6,7 +6,7 @@ Affiche les cycles d'apprentissage, les adaptations et les performances
 import sys
 sys.path.append('src')
 
-from trade_database import TradeDatabase
+from src.trade_database import TradeDatabase
 from datetime import datetime, timedelta
 import time
 

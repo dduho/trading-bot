@@ -5,10 +5,10 @@ Script pour vérifier l'état du système ML
 import sys
 sys.path.append('src')
 
-from ml_optimizer import MLOptimizer
-from learning_engine import AdaptiveLearningEngine
-from performance_analyzer import PerformanceAnalyzer
-from trade_database import TradeDatabase
+from src.ml_optimizer import MLOptimizer
+from src.learning_engine import AdaptiveLearningEngine
+from src.performance_analyzer import PerformanceAnalyzer
+from src.trade_database import TradeDatabase
 import yaml
 import os
 

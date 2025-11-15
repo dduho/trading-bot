@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Importer le notifier
-from telegram_notifier import TelegramNotifier
+from src.telegram_notifier import TelegramNotifier
 
 def test_notification():
     """Envoie une notification de test"""

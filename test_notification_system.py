@@ -10,7 +10,7 @@ import time
 import logging
 import sys
 sys.path.insert(0, 'src')
-from telegram_notifier import TelegramNotifier
+from src.telegram_notifier import TelegramNotifier
 import yaml
 
 # Setup logging

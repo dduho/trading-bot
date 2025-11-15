@@ -1,6 +1,6 @@
 import sys
 sys.path.append('src')
-from trade_database import TradeDatabase
+from src.trade_database import TradeDatabase
 
 db = TradeDatabase()
 cursor = db.conn.cursor()

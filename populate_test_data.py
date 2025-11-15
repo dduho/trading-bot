@@ -7,7 +7,7 @@ import sys
 import os
 sys.path.append('src')
 
-from trade_database import TradeDatabase
+from src.trade_database import TradeDatabase
 from datetime import datetime, timedelta
 import random
 import json

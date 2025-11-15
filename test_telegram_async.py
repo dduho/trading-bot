@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 import yaml
-from telegram_notifier import TelegramNotifier
+from src.telegram_notifier import TelegramNotifier
 
 async def main():
     """Envoie une notification de test"""

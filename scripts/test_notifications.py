@@ -9,7 +9,7 @@ import sys
 sys.path.append('src')
 
 import yaml
-from telegram_notifier import TelegramNotifier
+from src.telegram_notifier import TelegramNotifier
 
 async def test_all_notifications():
     """Tester tous les types de notifications"""

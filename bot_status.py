@@ -5,7 +5,7 @@ Script pour afficher le statut actuel du bot de trading
 import sys
 sys.path.append('src')
 
-from trade_database import TradeDatabase
+from src.trade_database import TradeDatabase
 from datetime import datetime
 
 db = TradeDatabase()
