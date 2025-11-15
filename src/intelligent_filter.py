@@ -17,7 +17,7 @@ class IntelligentFilter:
     def __init__(self, db, config: dict):
         self.db = db
         self.config = config
-        self.min_signal_strength = 0.15  # Minimum 15% de confiance (plus permissif)
+        self.min_signal_strength = 0.12  # Minimum 12% de confiance
         self.min_confluence = 1  # Au moins 1 indicateur aligné (plus permissif)
 
     def should_take_trade(self, signal: Dict, market_conditions: Dict, symbol: str) -> Tuple[bool, str]:
