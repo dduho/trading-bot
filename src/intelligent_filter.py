@@ -17,8 +17,8 @@ class IntelligentFilter:
     def __init__(self, db, config: dict):
         self.db = db
         self.config = config
-        self.min_signal_strength = 0.20  # Minimum 20% de confiance
-        self.min_confluence = 2  # Au moins 2 indicateurs alignés
+        self.min_signal_strength = 0.15  # Minimum 15% de confiance (plus permissif)
+        self.min_confluence = 1  # Au moins 1 indicateur aligné (plus permissif)
 
     def should_take_trade(self, signal: Dict, market_conditions: Dict, symbol: str) -> Tuple[bool, str]:
         """
@@ -43,17 +43,17 @@ class IntelligentFilter:
         if self._is_market_choppy(market_conditions):
             return False, "Marché trop choppy (range-bound)"
 
-        # Filtre 4: Historique récent du symbole
-        recent_performance = self._get_recent_symbol_performance(symbol)
-        if recent_performance and recent_performance < 0.35:
-            return False, f"Performance récente faible sur {symbol} ({recent_performance:.1%})"
+        # Filtre 4: Historique récent du symbole (DÉSACTIVÉ - trop strict)
+        # recent_performance = self._get_recent_symbol_performance(symbol)
+        # if recent_performance and recent_performance < 0.30:
+        #     return False, f"Performance récente faible sur {symbol} ({recent_performance:.1%})"
 
-        # Filtre 5: Trop de pertes consécutives
+        # Filtre 5: Trop de pertes consécutives (assooupli)
         consecutive_losses = self._get_consecutive_losses()
-        if consecutive_losses >= 3:
-            # Après 3 pertes consécutives, on devient TRÈS sélectif
-            if confidence < 0.30:
-                return False, f"3+ pertes consécutives, need higher confidence ({confidence:.1%} < 30%)"
+        if consecutive_losses >= 5:
+            # Seulement après 5 pertes (au lieu de 3), on devient plus sélectif
+            if confidence < 0.25:
+                return False, f"5+ pertes consécutives, need higher confidence ({confidence:.1%} < 25%)"
 
         return True, f"✓ Good setup: conf={confidence:.1%}, confluence={aligned_indicators}, market=trending"
 
