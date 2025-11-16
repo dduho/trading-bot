@@ -17,8 +17,20 @@ class IntelligentFilter:
     def __init__(self, db, config: dict):
         self.db = db
         self.config = config
-        self.min_signal_strength = 0.12  # Minimum 12% de confiance
-        self.min_confluence = 1  # Au moins 1 indicateur aligné (plus permissif)
+
+        # Déterminer si on est en phase d'apprentissage
+        self.is_learning_phase = self._is_in_learning_phase()
+
+        if self.is_learning_phase:
+            # Phase apprentissage: Plus permissif pour collecter des données
+            self.min_signal_strength = 0.10  # 10% minimum (permissif)
+            self.min_confluence = 1
+            logger.info("🎓 LEARNING MODE: Intelligent filter in learning mode (permissive)")
+        else:
+            # Phase exploitation: Plus strict pour maximiser profits
+            self.min_signal_strength = 0.18  # 18% minimum (strict)
+            self.min_confluence = 2
+            logger.info("💰 PROFIT MODE: Intelligent filter in profit mode (selective)")
 
     def should_take_trade(self, signal: Dict, market_conditions: Dict, symbol: str) -> Tuple[bool, str]:
         """
@@ -39,11 +51,12 @@ class IntelligentFilter:
         if aligned_indicators < self.min_confluence:
             return False, f"Confluence insuffisante ({aligned_indicators}/{self.min_confluence} indicateurs)"
 
-        # Filtre 3: Conditions de marché défavorables
-        if self._is_market_choppy(market_conditions):
-            return False, "Marché trop choppy (range-bound)"
+        # Filtre 3: Conditions de marché défavorables (DÉSACTIVÉ en apprentissage)
+        if not self.is_learning_phase:
+            if self._is_market_choppy(market_conditions):
+                return False, "Marché trop choppy (range-bound)"
 
-        # Filtre 4: Historique récent du symbole (DÉSACTIVÉ - trop strict)
+        # Filtre 4: Historique récent du symbole (DÉSACTIVÉ en apprentissage)
         # recent_performance = self._get_recent_symbol_performance(symbol)
         # if recent_performance and recent_performance < 0.30:
         #     return False, f"Performance récente faible sur {symbol} ({recent_performance:.1%})"
@@ -56,6 +69,26 @@ class IntelligentFilter:
                 return False, f"5+ pertes consécutives, need higher confidence ({confidence:.1%} < 25%)"
 
         return True, f"✓ Good setup: conf={confidence:.1%}, confluence={aligned_indicators}, market=trending"
+
+    def _is_in_learning_phase(self) -> bool:
+        """Détermine si le bot est en phase d'apprentissage"""
+        try:
+            stats = self.db.get_performance_stats(days=7)
+            total_trades = stats.get('total_trades', 0)
+            win_rate = stats.get('win_rate', 0)
+
+            # Phase apprentissage si:
+            # - Moins de 100 trades (pas assez de données)
+            # - OU win rate < 45% (performances pas encore stables)
+            if total_trades < 100:
+                return True
+            if win_rate < 0.45:
+                return True
+
+            return False
+        except Exception as e:
+            logger.error(f"Error checking learning phase: {e}")
+            return True  # Par défaut en mode apprentissage
 
     def _count_aligned_indicators(self, details: Dict, action: str) -> int:
         """Compte combien d'indicateurs sont alignés avec le signal"""
