@@ -241,10 +241,10 @@ class RiskManager:
         if self.daily_trades >= self.config['max_daily_trades']:
             return False, f"Daily trade limit reached ({self.config['max_daily_trades']})"
 
-        # Check daily loss limit
-        max_daily_loss = self.config['max_daily_loss_percent']
-        if self.daily_pnl < 0 and abs(self.daily_pnl) >= max_daily_loss:
-            return False, f"Daily loss limit reached ({max_daily_loss}%)"
+        # Check daily loss limit (DÉSACTIVÉ en phase d'apprentissage paper trading)
+        # max_daily_loss = self.config['max_daily_loss_percent']
+        # if self.daily_pnl < 0 and abs(self.daily_pnl) >= max_daily_loss:
+        #     return False, f"Daily loss limit reached ({max_daily_loss}%)"
 
         return True, "OK"
 
