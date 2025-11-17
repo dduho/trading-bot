@@ -43,7 +43,7 @@ class AutonomousWatchdog:
         # Thresholds for detection
         self.min_trades_per_hour = 2  # Minimum acceptable trading frequency
         self.max_position_age_hours = 6  # Max time a position should stay open
-        self.confidence_check_interval = 30  # Check every 30 minutes
+        self.confidence_check_interval = 5  # Check every 5 minutes (phantom cleanup)
 
         # Last check timestamps
         self.last_health_check = datetime.now()
