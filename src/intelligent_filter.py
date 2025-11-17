@@ -61,12 +61,13 @@ class IntelligentFilter:
         # if recent_performance and recent_performance < 0.30:
         #     return False, f"Performance récente faible sur {symbol} ({recent_performance:.1%})"
 
-        # Filtre 5: Trop de pertes consécutives (assooupli)
-        consecutive_losses = self._get_consecutive_losses()
-        if consecutive_losses >= 5:
-            # Seulement après 5 pertes (au lieu de 3), on devient plus sélectif
-            if confidence < 0.25:
-                return False, f"5+ pertes consécutives, need higher confidence ({confidence:.1%} < 25%)"
+        # Filtre 5: Trop de pertes consécutives (DÉSACTIVÉ en apprentissage)
+        if not self.is_learning_phase:
+            consecutive_losses = self._get_consecutive_losses()
+            if consecutive_losses >= 5:
+                # Seulement après 5 pertes (au lieu de 3), on devient plus sélectif
+                if confidence < 0.25:
+                    return False, f"5+ pertes consécutives, need higher confidence ({confidence:.1%} < 25%)"
 
         return True, f"✓ Good setup: conf={confidence:.1%}, confluence={aligned_indicators}, market=trending"
 
