@@ -41,13 +41,14 @@ class AutonomousWatchdog:
         self.risk_manager = risk_manager
 
         # Thresholds for detection
-        self.min_trades_per_hour = 2  # Minimum acceptable trading frequency
-        self.max_position_age_hours = 6  # Max time a position should stay open
-        self.confidence_check_interval = 5  # Check every 5 minutes (phantom cleanup)
+        self.min_trades_per_hour = 0.5  # LOWERED: 0.5 trades/hour minimum (was 2) - more realistic
+        self.max_position_age_hours = 24  # INCREASED: 24h max age (was 6h) - less aggressive closing
+        self.confidence_check_interval = 30  # Check every 30 minutes (was 5)
 
         # Last check timestamps
         self.last_health_check = datetime.now()
         self.last_intervention = None
+        self.last_confidence_reset = None  # Track last confidence reset to avoid spam
 
         # Issues detected
         self.issues_detected: List[str] = []
@@ -152,39 +153,50 @@ class AutonomousWatchdog:
         if recent_count < self.min_trades_per_hour:
             logger.warning(f"⚠️ LOW TRADING ACTIVITY: Only {recent_count} trades in last hour (min: {self.min_trades_per_hour})")
 
-            # AUTO-FIX 1: TOUJOURS forcer confidence à 3% (même si déjà à 3%)
-            # Car le ML peut l'avoir remonté entre les checks
+            # Check if the real problem is daily_trades limit being hit
+            if self.risk_manager:
+                current_daily = self.risk_manager.daily_trades
+                max_daily = self.config.get('risk', {}).get('max_daily_trades', 80)
+                
+                if current_daily >= max_daily:
+                    logger.error(f"� CRITICAL: Daily trade limit reached ({current_daily}/{max_daily}) - Cannot trade until daily reset!")
+                    logger.error(f"   Last reset: {self.risk_manager.last_reset}")
+                    logger.error(f"   Current date: {datetime.now().date()}")
+                    
+                    # Check if daily reset is stuck (should have reset by now)
+                    if datetime.now().date() > self.risk_manager.last_reset:
+                        logger.error(f"🔧 AUTO-FIX: Daily reset STUCK - Forcing reset NOW")
+                        self.risk_manager.daily_trades = 0
+                        self.risk_manager.daily_pnl = 0
+                        self.risk_manager.last_reset = datetime.now().date()
+                        self.auto_fixes_applied.append(f"FORCE daily reset: {current_daily} → 0 trades (stuck reset)")
+                        self.last_intervention = datetime.now()
+                        return f"Daily trade limit stuck at {current_daily} - FORCE reset applied"
+                    
+                    # Daily limit legitimately hit - don't spam confidence resets
+                    return f"Daily trade limit reached: {current_daily}/{max_daily} (waiting for midnight reset)"
+
+            # Only reset confidence if we haven't done it recently (avoid spam)
             current_conf = self.config.get('strategy', {}).get('min_confidence', 0.05)
-            logger.warning(f"🔧 AUTO-FIX: FORCE confidence {current_conf:.1%} → 3% (emergency restart)")
+            
+            # Don't reset confidence if already at or below 3%
+            if current_conf <= 0.03:
+                logger.info("ℹ️ Confidence already at minimum (3%) - no reset needed")
+                return f"Low activity: {recent_count} trades/hour, but confidence already minimal"
+            
+            # Don't reset confidence more than once per hour
+            if self.last_confidence_reset:
+                time_since_last_reset = (datetime.now() - self.last_confidence_reset).total_seconds() / 60
+                if time_since_last_reset < 60:
+                    logger.info(f"ℹ️ Confidence was reset {time_since_last_reset:.0f}min ago - skipping spam reset")
+                    return f"Low activity: {recent_count} trades/hour (recent conf reset {time_since_last_reset:.0f}min ago)"
+
+            # AUTO-FIX: Reset confidence to 3%
+            logger.warning(f"🔧 AUTO-FIX: Confidence reset {current_conf:.1%} → 3% (low activity)")
             self.config['strategy']['min_confidence'] = 0.03
-            self.auto_fixes_applied.append(f"FORCE reset: confidence {current_conf:.1%} → 3%")
+            self.auto_fixes_applied.append(f"Confidence reset: {current_conf:.1%} → 3%")
             self.last_intervention = datetime.now()
-
-            # AUTO-FIX 2: Force close ALL open positions to free up space
-            open_positions = self.db.get_trade_history(limit=100, status='OPEN')
-            if open_positions:
-                logger.warning(f"🔧 AUTO-FIX: Force-closing ALL {len(open_positions)} positions to restart trading")
-                for pos in open_positions:
-                    now = datetime.now()
-                    symbol = pos['symbol']
-
-                    # Close in database
-                    self.db.update_trade(pos['id'], {
-                        'status': 'closed',
-                        'exit_price': pos['entry_price'],
-                        'exit_time': now,
-                        'pnl': 0,
-                        'pnl_percent': 0,
-                        'exit_reason': 'Watchdog: Emergency close - no trading activity',
-                        'duration_minutes': (now - datetime.fromisoformat(pos['entry_time'])).total_seconds() / 60
-                    })
-
-                    # CRITICAL: Also clear from risk_manager to avoid phantom positions
-                    if self.risk_manager and symbol in self.risk_manager.positions:
-                        logger.warning(f"🧹 Clearing phantom position from risk_manager: {symbol}")
-                        self.risk_manager.close_position(symbol, pos['entry_price'], 'Watchdog: Emergency close')
-
-                self.auto_fixes_applied.append(f"Force-closed {len(open_positions)} positions (emergency restart)")
+            self.last_confidence_reset = datetime.now()
 
             return f"Low trading activity: {recent_count} trades/hour (expected: ≥{self.min_trades_per_hour})"
 
@@ -288,11 +300,17 @@ class AutonomousWatchdog:
         stats = self.db.get_performance_stats(days=1)
 
         # Check if win rate is critically low
-        if stats['total_trades'] > 20 and stats['win_rate'] < 0.25:
+        if stats['total_trades'] > 30 and stats['win_rate'] < 0.30:
             logger.warning(f"⚠️ CRITICAL WIN RATE: {stats['win_rate']:.1%} (expected: >30%)")
 
-            # AUTO-FIX: Increase confidence to be more selective
+            # AUTO-FIX: Increase confidence to be more selective, but CAP at 10%
             current_conf = self.config.get('strategy', {}).get('min_confidence', 0.05)
+            
+            # Don't adjust if already at or above 10%
+            if current_conf >= 0.10:
+                logger.info(f"ℹ️ Confidence already at {current_conf:.1%} (max 10%) - no increase")
+                return f"Critical win rate: {stats['win_rate']:.1%}, but confidence at max (10%)"
+            
             new_conf = min(0.10, current_conf + 0.02)  # Increase by 2%, max 10%
 
             logger.warning(f"🔧 AUTO-FIX: Increasing selectivity {current_conf:.1%} → {new_conf:.1%}")

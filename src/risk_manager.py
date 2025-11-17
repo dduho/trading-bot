@@ -124,7 +124,19 @@ class RiskManager:
             self.daily_pnl = 0
             self.daily_trades = 0
             self.last_reset = today
-            logger.info("Daily statistics reset")
+            logger.info(f"📅 Daily statistics reset - New day: {today}")
+        
+        # CRITICAL FIX: Also reset if we're past midnight UTC
+        # This ensures stats reset even if bot runs continuously
+        now = datetime.now()
+        if now.hour == 0 and now.minute < 15 and self.daily_trades > 0:
+            # We're in the first 15 minutes of a new day and have trades counted
+            # Force reset to ensure clean slate
+            old_trades = self.daily_trades
+            self.daily_pnl = 0
+            self.daily_trades = 0
+            self.last_reset = today
+            logger.warning(f"🔄 FORCE daily reset (was {old_trades} trades) - Midnight passed")
 
     def calculate_position_size(self, capital: float, risk_percent: float,
                                 entry_price: float, stop_loss: float) -> float:

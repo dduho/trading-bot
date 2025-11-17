@@ -898,6 +898,10 @@ class TradingBot:
             try:
                 iteration += 1
 
+                # CRITICAL: Force daily reset check every iteration
+                # Prevents stuck daily_trades counter from blocking all trading
+                self.risk_manager.reset_daily_stats()
+
                 # Check if learning cycle should be triggered
                 if self.learning_engine.should_trigger_learning():
                     logger.info(f"\n{Fore.MAGENTA}{'='*80}")

@@ -56,43 +56,43 @@ strategy:
 
 # Risk management
 risk:
-  max_position_size_percent: 2    # DÉMARRAGE BAS: 2% par position (le ML ajustera)
-  stop_loss_percent: 1.5          # DÉMARRAGE SERRÉ: Stop loss at 1.5%
+  max_position_size_percent: 3    # IMPROVED: 3% par position (balance volume/risk)
+  stop_loss_percent: 1.5          # CONSERVATEUR: Stop loss at 1.5%
   take_profit_percent: 4.5        # RATIO 3:1 conservateur
   trailing_stop_percent: 1.0
   risk_reward_ratio: 3.0          # Ratio conservateur
-  max_open_positions: 8           # ULTRA AGRESSIF: 8 positions pour apprentissage accéléré!
-  max_daily_trades: 80            # ULTRA AGRESSIF: 80 trades/jour - apprentissage ultra rapide!
+  max_open_positions: 5           # OPTIMIZED: 5 positions max (balance diversification/gestion)
+  max_daily_trades: 200           # INCREASED: 200 trades/jour - assez pour apprendre sans bloquer
   max_daily_loss_percent: 100.0   # DÉSACTIVÉ pour apprentissage (paper trading only!)
-  cooldown_seconds: 45            # ULTRA RÉDUIT: 45s entre trades
+  cooldown_seconds: 30            # OPTIMIZED: 30s entre trades (réduit spam, garde vitesse)
 
 # Execution settings
 execution:
   order_type: limit  # market or limit
   slippage_tolerance: 0.5  # % tolerance for price slippage
 
-# Adaptive Learning System - APPRENTISSAGE ULTRA-RAPIDE
+# Adaptive Learning System - OPTIMIZED pour apprentissage continu
 learning:
   enabled: true  # Enable/disable learning system
-  learning_interval_hours: 0.5  # ULTRA-RAPIDE: Apprentissage toutes les 30 minutes!
-  min_trades_for_learning: 5  # TRÈS BAS: Commence à apprendre dès 5 trades
-  adaptation_aggressiveness: moderate  # MODÉRÉ: Changements prudents au début
+  learning_interval_hours: 2  # OPTIMIZED: Apprentissage toutes les 2h (balance fréquence/données)
+  min_trades_for_learning: 30  # OPTIMIZED: 30 trades minimum (balance données/rapidité)
+  adaptation_aggressiveness: moderate  # MODÉRÉ: Changements prudents mais efficaces
   auto_apply_adaptations: true  # AUTO: Applique les améliorations automatiquement
   continuous_learning: true  # Mode apprentissage continu activé
 
   # ML Model settings
   ml_model:
     type: random_forest  # random_forest or gradient_boosting
-    retrain_interval_hours: 12  # Réentraînement toutes les 12h
-    min_accuracy_threshold: 0.52  # PERMISSIF: Accepte 52% pour commencer
+    retrain_interval_hours: 6  # OPTIMIZED: Réentraînement toutes les 6h
+    min_accuracy_threshold: 0.55  # REALISTIC: Accepte 55% (meilleur que hasard)
     incremental_learning: true  # Apprentissage incrémental
     auto_retrain_on_poor_performance: true  # Réentraînement auto si mauvaise perf
 
-  # Learning goals - OBJECTIFS PROGRESSIFS
+  # Learning goals - OBJECTIFS RÉALISTES ET PROGRESSIFS
   target_metrics:
-    win_rate: 0.52  # DÉMARRAGE: Target 52% win rate (augmentera progressivement)
-    profit_factor: 1.5  # DÉMARRAGE: Target profit factor 1.5
-    sharpe_ratio: 1.0  # DÉMARRAGE: Target Sharpe ratio 1.0
+    win_rate: 0.55  # REALISTIC: Target 55% win rate (progressif)
+    profit_factor: 1.8  # IMPROVED: Target profit factor 1.8
+    sharpe_ratio: 1.2  # IMPROVED: Target Sharpe ratio 1.2
   
   # Performance monitoring for continuous improvement
   performance_monitoring:
