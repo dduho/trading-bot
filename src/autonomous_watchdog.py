@@ -92,6 +92,16 @@ class AutonomousWatchdog:
         if perf_issue:
             self.issues_detected.append(perf_issue)
 
+        # Check 5: AUTO-RUN cleanup_database if too many open positions
+        cleanup_issue = self._auto_cleanup_database()
+        if cleanup_issue:
+            self.issues_detected.append(cleanup_issue)
+
+        # Check 6: AUTO-RUN optimizer if confidence stuck >10%
+        optimizer_issue = self._auto_run_optimizer()
+        if optimizer_issue:
+            self.issues_detected.append(optimizer_issue)
+
         self.last_health_check = now
 
         return {
@@ -138,17 +148,61 @@ class AutonomousWatchdog:
     def _check_trading_activity(self) -> Optional[str]:
         """
         Check if bot is trading at acceptable frequency.
+        Also checks if no trades for >2h (critical inactivity).
 
         Returns:
             Issue description if problem detected, None otherwise
         """
         # Get trades from last hour
         one_hour_ago = datetime.now() - timedelta(hours=1)
+        two_hours_ago = datetime.now() - timedelta(hours=2)
         recent_trades = self.db.get_trade_history(limit=1000)
 
         # Filter trades from last hour
         recent_count = sum(1 for t in recent_trades
                           if datetime.fromisoformat(t['entry_time']) > one_hour_ago)
+        
+        # Check for critical inactivity (no trades for >2h)
+        recent_2h_count = sum(1 for t in recent_trades
+                             if datetime.fromisoformat(t['entry_time']) > two_hours_ago)
+        
+        if recent_2h_count == 0:
+            logger.error(f"🚨 CRITICAL: NO TRADES for >2 hours!")
+            logger.error("🔧 AUTO-FIX: Emergency diagnostics...")
+            
+            # Diagnostic 1: Check if daily limit reached
+            if self.risk_manager:
+                current_daily = self.risk_manager.daily_trades
+                max_daily = self.config.get('risk', {}).get('max_daily_trades', 200)
+                logger.error(f"   Daily trades: {current_daily}/{max_daily}")
+                
+                if current_daily >= max_daily:
+                    logger.error(f"   → PROBLEM: Daily limit reached!")
+                    # Force reset if stuck
+                    if datetime.now().date() > self.risk_manager.last_reset:
+                        self.risk_manager.daily_trades = 0
+                        self.risk_manager.daily_pnl = 0
+                        self.risk_manager.last_reset = datetime.now().date()
+                        self.auto_fixes_applied.append("EMERGENCY: Force daily reset (>2h no trades)")
+            
+            # Diagnostic 2: Check confidence level
+            current_conf = self.config.get('strategy', {}).get('min_confidence', 0.05)
+            logger.error(f"   Confidence: {current_conf:.1%}")
+            if current_conf > 0.10:
+                logger.error(f"   → PROBLEM: Confidence too high!")
+                self.config['strategy']['min_confidence'] = 0.05
+                self.auto_fixes_applied.append(f"EMERGENCY: Confidence {current_conf:.1%} → 5%")
+            
+            # Diagnostic 3: Check open positions (might be maxed out)
+            open_positions = self.db.get_trade_history(limit=100, status='OPEN')
+            max_positions = self.config.get('risk', {}).get('max_open_positions', 5)
+            logger.error(f"   Open positions: {len(open_positions)}/{max_positions}")
+            if len(open_positions) >= max_positions:
+                logger.error(f"   → PROBLEM: Max positions reached!")
+                # Don't auto-close in this case, just warn
+            
+            self.last_intervention = datetime.now()
+            return f"CRITICAL: No trades for >2h - Emergency diagnostics applied"
 
         if recent_count < self.min_trades_per_hour:
             logger.warning(f"⚠️ LOW TRADING ACTIVITY: Only {recent_count} trades in last hour (min: {self.min_trades_per_hour})")
@@ -361,3 +415,113 @@ class AutonomousWatchdog:
             status += f"\n⏱️ Last intervention: {time_since:.0f} minutes ago\n"
 
         return status
+
+    def _auto_cleanup_database(self) -> Optional[str]:
+        """
+        AUTO-RUN cleanup_database.py if too many open positions (>50).
+        
+        Returns:
+            Issue description if cleanup ran, None otherwise
+        """
+        try:
+            open_positions = self.db.get_trade_history(limit=200, status='OPEN')
+            
+            if len(open_positions) > 50:
+                logger.warning(f"⚠️ TOO MANY OPEN POSITIONS: {len(open_positions)} (max: 50)")
+                logger.warning("🔧 AUTO-FIX: Running database cleanup...")
+                
+                # Clean stuck positions (>24h old)
+                now = datetime.now()
+                cleaned_count = 0
+                
+                for pos in open_positions:
+                    entry_time = datetime.fromisoformat(pos['entry_time'])
+                    age_hours = (now - entry_time).total_seconds() / 3600
+                    
+                    if age_hours > 24:
+                        # Close at breakeven
+                        self.db.update_trade(pos['id'], {
+                            'status': 'closed',
+                            'exit_price': pos['entry_price'],
+                            'exit_time': now,
+                            'pnl': 0,
+                            'pnl_percent': 0,
+                            'exit_reason': 'Watchdog: Auto-cleanup (>24h)',
+                            'duration_minutes': age_hours * 60
+                        })
+                        cleaned_count += 1
+                        
+                        # Also clear from risk_manager
+                        if self.risk_manager and pos['symbol'] in self.risk_manager.positions:
+                            self.risk_manager.close_position(pos['symbol'], pos['entry_price'], 'Watchdog: Auto-cleanup')
+                
+                if cleaned_count > 0:
+                    logger.info(f"✅ Database cleanup complete: {cleaned_count} positions closed")
+                    self.auto_fixes_applied.append(f"Auto-cleanup: {cleaned_count} stuck positions closed")
+                    self.last_intervention = datetime.now()
+                    return f"Database cleanup: {cleaned_count}/{len(open_positions)} positions closed"
+                
+        except Exception as e:
+            logger.error(f"Error in auto cleanup: {e}", exc_info=True)
+        
+        return None
+
+    def _auto_run_optimizer(self) -> Optional[str]:
+        """
+        AUTO-RUN autonomous_optimizer.py if confidence stuck >10% for too long.
+        
+        Returns:
+            Issue description if optimizer ran, None otherwise
+        """
+        try:
+            current_conf = self.config.get('strategy', {}).get('min_confidence', 0.05)
+            
+            # If confidence >10% and we haven't optimized recently (>2h)
+            if current_conf > 0.10:
+                # Check last optimization time
+                if hasattr(self, '_last_optimizer_run'):
+                    time_since_opt = (datetime.now() - self._last_optimizer_run).total_seconds() / 3600
+                    if time_since_opt < 2:
+                        # Already ran optimizer recently, skip
+                        return None
+                
+                logger.warning(f"⚠️ CONFIDENCE STUCK HIGH: {current_conf:.1%} (max optimal: 10%)")
+                logger.warning("🔧 AUTO-FIX: Running autonomous optimizer...")
+                
+                try:
+                    # Import and run optimizer
+                    import sys
+                    import os
+                    sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+                    
+                    from autonomous_optimizer import AutonomousOptimizer
+                    
+                    optimizer = AutonomousOptimizer()
+                    changes_made, summary = optimizer.run_full_optimization()
+                    
+                    if changes_made:
+                        logger.info(f"✅ Autonomous optimizer complete: {len(summary)} changes")
+                        self.auto_fixes_applied.append(f"Auto-optimizer: {len(summary)} parameters adjusted")
+                        self._last_optimizer_run = datetime.now()
+                        self.last_intervention = datetime.now()
+                        
+                        # Reload config to get updated values
+                        import yaml
+                        with open('config.yaml', 'r') as f:
+                            self.config.update(yaml.safe_load(f))
+                        
+                        return f"Optimizer ran: {len(summary)} parameters optimized"
+                    
+                except Exception as opt_error:
+                    logger.error(f"Optimizer failed: {opt_error}", exc_info=True)
+                    # Fallback: Force reset confidence to 8%
+                    logger.warning("⚠️ Optimizer failed, FALLBACK: Resetting confidence to 8%")
+                    self.config['strategy']['min_confidence'] = 0.08
+                    self.auto_fixes_applied.append(f"FALLBACK reset: confidence {current_conf:.1%} → 8%")
+                    self.last_intervention = datetime.now()
+                    return f"Confidence stuck at {current_conf:.1%} - FALLBACK reset to 8%"
+                    
+        except Exception as e:
+            logger.error(f"Error in auto optimizer: {e}", exc_info=True)
+        
+        return None
