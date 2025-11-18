@@ -46,9 +46,9 @@ def emergency_reset():
     print(f"   Today ({today_str}): {len(today_trades)} trades")
     print(f"   Recent trades in DB: {len(recent_trades)} trades")
     
-    # 4. Get open positions
-    open_positions = db.get_open_positions()
-    print(f"   Open positions: {len(open_positions)}")
+    # 4. Get open positions (status = OPEN)
+    open_trades = [t for t in recent_trades if t.get('status') == 'OPEN']
+    print(f"   Open positions: {len(open_trades)}")
     
     # 5. Check risk_manager state file
     print("\n🔍 Checking risk_manager state...")
