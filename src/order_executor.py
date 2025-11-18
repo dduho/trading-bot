@@ -41,9 +41,13 @@ class OrderExecutor:
         self.exchange = exchange
         self.mode = mode
         self.paper_balance = {'USDT': 10000}  # Starting paper trading balance
+        self.paper_initial_capital = 10000  # Track initial capital for auto-refill
         self.paper_orders = []
 
         logger.info(f"Order Executor initialized in {mode.value.upper()} mode")
+        
+        if mode == TradingMode.PAPER:
+            logger.info("🎮 PAPER MODE: Unlimited capital - auto-refill enabled at 20% threshold")
 
         # Safety check
         if mode == TradingMode.LIVE:
@@ -283,10 +287,13 @@ class OrderExecutor:
 
         if side == 'buy':
             cost = amount * execution_price
-            # Check if we have enough quote currency
-            if self.paper_balance.get(quote_currency, 0) < cost:
-                logger.error(f"❌ Insufficient paper balance: need {cost} {quote_currency}")
-                return None
+            
+            # PAPER MODE: Auto-refill if balance too low
+            current_balance = self.paper_balance.get(quote_currency, 0)
+            if current_balance < cost:
+                refill_amount = self.paper_initial_capital
+                self.paper_balance[quote_currency] = current_balance + refill_amount
+                logger.info(f"💰 PAPER MODE: Auto-refilled {refill_amount} {quote_currency} (was {current_balance:.2f})")
 
             # Update balances
             self.paper_balance[quote_currency] = self.paper_balance.get(quote_currency, 0) - cost
@@ -296,9 +303,9 @@ class OrderExecutor:
             # Allow synthetic shorts in PAPER mode by permitting negative base balance
             allow_shorts = True
             base_available = self.paper_balance.get(base_currency, 0)
-            if base_available < amount and not allow_shorts:
-                logger.error(f"❌ Insufficient paper balance: need {amount} {base_currency}")
-                return None
+            
+            # PAPER MODE: Always allow shorts (negative balance is fine)
+            # No balance check needed in paper mode for sells
 
             # Update balances (may go negative on base for shorts)
             cost = amount * execution_price

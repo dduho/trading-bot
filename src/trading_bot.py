@@ -89,7 +89,10 @@ class TradingBot:
         # Initialize analysis components
         self.analyzer = TechnicalAnalyzer(self.config.get('indicators', {}))
         self.signal_generator = SignalGenerator(self.config.get('strategy', {}))
-        self.risk_manager = RiskManager(self.config.get('risk', {}))
+        self.risk_manager = RiskManager(
+            self.config.get('risk', {}),
+            trading_mode=self.trading_mode.value
+        )
 
         # Initialize learning system
         learning_config = self.config.get('learning', {

@@ -89,20 +89,26 @@ class Position:
 class RiskManager:
     """Manages trading risk and position sizing"""
 
-    def __init__(self, config: Dict = None):
+    def __init__(self, config: Dict = None, trading_mode: str = "paper"):
         """
         Initialize risk manager
 
         Args:
             config: Risk management configuration
+            trading_mode: Trading mode ("paper", "testnet", or "live")
         """
         self.config = config or self._default_config()
+        self.trading_mode = trading_mode.lower()
         self.positions: Dict[str, Position] = {}
         self.closed_positions: List[Position] = []
         self.daily_pnl = 0
         self.daily_trades = 0
         self.last_reset = datetime.now().date()
         self.last_trade_time: Dict[str, datetime] = {}  # Per-symbol cooldown tracking
+        
+        # In paper mode, disable all limits
+        if self.trading_mode == "paper":
+            logger.info("🎮 PAPER MODE: All trading limits DISABLED for unlimited learning")
 
     def _default_config(self) -> Dict:
         """Default risk configuration"""
@@ -238,6 +244,12 @@ class RiskManager:
         if symbol in self.positions:
             return False, f"Position already open for {symbol}"
 
+        # IN PAPER MODE: Skip ALL limits (daily trades, max positions, cooldown)
+        if self.trading_mode == "paper":
+            return True, "OK (paper mode - no limits)"
+
+        # LIVE/TESTNET MODE: Apply all safety limits
+        
         # Cooldown check
         cooldown = self.config.get('cooldown_seconds')
         if cooldown and symbol in self.last_trade_time:
@@ -252,11 +264,6 @@ class RiskManager:
         # Check daily trade limit
         if self.daily_trades >= self.config['max_daily_trades']:
             return False, f"Daily trade limit reached ({self.config['max_daily_trades']})"
-
-        # Check daily loss limit (DÉSACTIVÉ en phase d'apprentissage paper trading)
-        # max_daily_loss = self.config['max_daily_loss_percent']
-        # if self.daily_pnl < 0 and abs(self.daily_pnl) >= max_daily_loss:
-        #     return False, f"Daily loss limit reached ({max_daily_loss}%)"
 
         return True, "OK"
 
