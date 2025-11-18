@@ -36,13 +36,15 @@ def emergency_reset():
     print("\n📊 Checking database stats...")
     db = TradeDatabase()
     
+    # Get recent trades (last 1000)
+    recent_trades = db.get_recent_trades(limit=1000, status=None)
+    
     # Get today's trades
     today_str = date.today().isoformat()
-    trades = db.get_all_trades()
-    today_trades = [t for t in trades if t['entry_time'].startswith(today_str)]
+    today_trades = [t for t in recent_trades if t.get('entry_time', '').startswith(today_str)]
     
     print(f"   Today ({today_str}): {len(today_trades)} trades")
-    print(f"   Total in DB: {len(trades)} trades")
+    print(f"   Recent trades in DB: {len(recent_trades)} trades")
     
     # 4. Get open positions
     open_positions = db.get_open_positions()
