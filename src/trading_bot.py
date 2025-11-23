@@ -879,6 +879,11 @@ class TradingBot:
         if os.getenv('FORCE_LEARNING', '0') == '1':
             print(f"{Fore.MAGENTA}FORCE_LEARNING active - learning cycle will run immediately if conditions allow.{Style.RESET_ALL}\n")
 
+        # Print symbol performance summary
+        if hasattr(self, 'intelligent_filter') and self.intelligent_filter:
+            symbol_summary = self.intelligent_filter.get_symbol_performance_summary()
+            logger.info(f"\n{symbol_summary}\n")
+
         # Send startup notification via Telegram
         if self.telegram:
             try:
@@ -924,6 +929,11 @@ class TradingBot:
                         # Print performance report
                         perf_report = self.perf_analyzer.generate_performance_report()
                         print(perf_report)
+
+                        # Print symbol performance summary
+                        if hasattr(self, 'intelligent_filter') and self.intelligent_filter:
+                            symbol_summary = self.intelligent_filter.get_symbol_performance_summary()
+                            logger.info(f"\n{symbol_summary}\n")
 
                         # Send Telegram notification for learning cycle
                         if self.telegram:

@@ -7,6 +7,7 @@ Réduit les pertes en évitant les trades à faible probabilité de succès
 import logging
 from typing import Dict, Tuple
 from datetime import datetime, timedelta
+from symbol_selector import SymbolSelector
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +18,10 @@ class IntelligentFilter:
     def __init__(self, db, config: dict):
         self.db = db
         self.config = config
+
+        # Initialize dynamic symbol selector
+        self.symbol_selector = SymbolSelector(db, config)
+        logger.info("🎯 Dynamic Symbol Selector initialized")
 
         # Déterminer si on est en phase d'apprentissage
         self.is_learning_phase = self._is_in_learning_phase()
@@ -39,6 +44,11 @@ class IntelligentFilter:
         Returns:
             (should_trade, reason)
         """
+
+        # Filtre 0: Performance du symbole (prioritaire)
+        should_trade_symbol, symbol_reason = self.symbol_selector.should_trade_symbol(symbol)
+        if not should_trade_symbol:
+            return False, symbol_reason
 
         # Filtre 1: Confiance minimale
         confidence = signal.get('confidence', 0)
@@ -169,3 +179,7 @@ class IntelligentFilter:
             size *= 1.2  # +20% sur signaux >35%
 
         return size
+
+    def get_symbol_performance_summary(self) -> str:
+        """Get symbol performance summary from selector"""
+        return self.symbol_selector.get_performance_summary()
