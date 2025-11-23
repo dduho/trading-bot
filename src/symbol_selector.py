@@ -19,7 +19,7 @@ class SymbolSelector:
         self.config = config
 
         # All available symbols from config
-        self.available_symbols = config.get('trading_pairs', [])
+        self.available_symbols = config.get('symbols', config.get('trading_pairs', []))
 
         # Performance thresholds
         self.min_trades_for_evaluation = 20  # Need at least 20 trades to evaluate
