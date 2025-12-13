@@ -534,23 +534,23 @@ class MLOptimizer:
             min_conf = self.config.get('signal_generation', {}).get('min_confidence', 0.6)
 
         current_params = {
-            'rsi_period': self.config.get('technical_analysis', {}).get('rsi', {}).get('period', 14),
-            'min_confidence': min_conf,
-            'stop_loss': self.config.get('risk_management', {}).get('stop_loss_percent', 2.0),
-            'take_profit': self.config.get('risk_management', {}).get('take_profit_percent', 5.0)
+            'rsi_period': self.config.get('technical_analysis', {}).get('rsi', {}).get('period', 14) or 14,
+            'min_confidence': min_conf if min_conf is not None else 0.6,
+            'stop_loss': self.config.get('risk_management', {}).get('stop_loss_percent', 2.0) or 2.0,
+            'take_profit': self.config.get('risk_management', {}).get('take_profit_percent', 5.0) or 5.0
         }
         
         return {
-            'accuracy': accuracy,
-            'win_rate': win_rate,
-            'sharpe_ratio': sharpe_ratio,
-            'total_trades': total_trades,
-            'learning_cycles': learning_cycles,
-            'rsi_period': current_params['rsi_period'],
-            'min_confidence': current_params['min_confidence'],
-            'stop_loss': current_params['stop_loss'],
-            'take_profit': current_params['take_profit'],
-            'last_learning': last_learning
+            'accuracy': accuracy or 0,
+            'win_rate': win_rate or 0,
+            'sharpe_ratio': sharpe_ratio if sharpe_ratio is not None else 0,
+            'total_trades': total_trades or 0,
+            'learning_cycles': learning_cycles or 0,
+            'rsi_period': current_params['rsi_period'] or 14,
+            'min_confidence': current_params['min_confidence'] or 0.6,
+            'stop_loss': current_params['stop_loss'] or 2.0,
+            'take_profit': current_params['take_profit'] or 5.0,
+            'last_learning': last_learning or "Jamais"
         }
 
 # Added for PowerShell execution
