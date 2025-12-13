@@ -28,8 +28,8 @@ class EnhancedStrategy:
         self.trending_adx_threshold = 25  # ADX > 25 = trending
         self.ranging_adx_threshold = 20   # ADX < 20 = ranging
 
-        # Volume thresholds
-        self.min_volume_ratio = 0.8  # Current volume must be 80% of average
+        # Volume thresholds (assoupli pour permettre plus de trades)
+        self.min_volume_ratio = 0.3  # Current volume must be 30% of average (assez permissif)
 
         # Win rate tracking for adaptive behavior
         self.recent_trades = []
@@ -171,35 +171,35 @@ class EnhancedStrategy:
         """
         Enhanced trade filtering based on market conditions
         Complements intelligent_filter with regime-specific rules
+        ASSOUPLI: Permet plus de trades pour apprentissage
         """
 
-        # Check volume
+        # Check volume (assoupli)
         volume_ok, volume_reason = self.check_volume_conditions(df)
         if not volume_ok:
-            return False, volume_reason
+            # Log warning mais ne bloque pas
+            logger.info(f"⚠️ {volume_reason} - Allowing trade anyway")
 
         action = signal.get('action', 'HOLD')
         if action == 'HOLD':
             return False, "No signal"
 
-        # Regime-specific rules
+        # Regime-specific rules (ASSOUPLI - préférence mais pas blocage)
         if regime['regime'] == 'ranging':
-            # In ranging markets, avoid trend-following strategies
-            # Only trade mean reversion (RSI extremes)
+            # In ranging markets, PREFER mean reversion but allow all
             latest = df.iloc[-1]
             rsi = latest.get('rsi', 50)
 
-            if action == 'BUY' and rsi < 35:
-                # Oversold in range = good long
-                return True, "Range bounce from oversold"
-            elif action == 'SELL' and rsi > 65:
-                # Overbought in range = good short
-                return True, "Range bounce from overbought"
+            if action == 'BUY' and rsi < 40:  # Assoupli de 35 à 40
+                return True, "Range bounce from oversold (preferred)"
+            elif action == 'SELL' and rsi > 60:  # Assoupli de 65 à 60
+                return True, "Range bounce from overbought (preferred)"
             else:
-                return False, f"Ranging market - wait for extremes (RSI: {rsi:.1f})"
+                # Permet quand même le trade mais avec warning
+                return True, f"Ranging market trade (RSI: {rsi:.1f}) - not ideal but allowed"
 
         elif regime['regime'] == 'trending':
-            # In trending markets, only trade with the trend
+            # In trending markets, PREFER trend-following but allow counter-trend with warning
             latest = df.iloc[-1]
             ema_20 = latest.get('ema_20', 0)
             ema_50 = latest.get('ema_50', 0)
@@ -210,20 +210,21 @@ class EnhancedStrategy:
             trend_down = ema_20 < ema_50
 
             if action == 'BUY' and trend_up:
-                return True, "Trend-following long (uptrend)"
+                return True, "Trend-following long (uptrend) - ideal"
             elif action == 'SELL' and trend_down:
-                return True, "Trend-following short (downtrend)"
+                return True, "Trend-following short (downtrend) - ideal"
             else:
+                # Counter-trend autorisé mais signalé
                 trend_dir = "up" if trend_up else "down"
-                return False, f"Against trend ({trend_dir}) - skip counter-trend trade"
+                return True, f"Counter-trend trade ({trend_dir} trend) - risky but allowed"
 
         else:  # transitional
-            # Be more selective during transitions
+            # Transitional: permet tous les trades avec confiance raisonnable
             confidence = signal.get('confidence', 0)
-            if confidence < 0.20:  # Higher threshold
-                return False, f"Transitional market - need higher confidence (got {confidence:.1%})"
+            if confidence < 0.12:  # Assoupli de 20% à 12%
+                return False, f"Signal too weak (got {confidence:.1%})"
 
-            return True, "Transitional market - strong signal accepted"
+            return True, "Transitional market - trade accepted"
 
     def should_close_position(self, position: Dict, current_price: float, df) -> Tuple[bool, str]:
         """
