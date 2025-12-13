@@ -263,19 +263,23 @@ class TelegramCommandHandler:
             if hasattr(self.bot, 'ml_optimizer') and self.bot.ml_optimizer:
                 metrics = self.bot.ml_optimizer.get_current_metrics()
                 
+                # Handle None values safely
+                sharpe = metrics.get('sharpe_ratio', 0)
+                sharpe_str = f"{sharpe:.2f}" if sharpe is not None else "N/A"
+
                 message = (
                     f"🧠 *Système d'Apprentissage*\n\n"
-                    f"📈 Précision: `{metrics.get('accuracy', 0):.1f}%`\n"
-                    f"🎯 Win Rate: `{metrics.get('win_rate', 0):.1f}%`\n"
-                    f"💹 Sharpe Ratio: `{metrics.get('sharpe_ratio', 0):.2f}`\n"
-                    f"📊 Trades analysés: `{metrics.get('total_trades', 0)}`\n"
-                    f"🔄 Cycles ML: `{metrics.get('learning_cycles', 0)}`\n\n"
+                    f"📈 Précision: `{metrics.get('accuracy', 0) or 0:.1f}%`\n"
+                    f"🎯 Win Rate: `{metrics.get('win_rate', 0) or 0:.1f}%`\n"
+                    f"💹 Sharpe Ratio: `{sharpe_str}`\n"
+                    f"📊 Trades analysés: `{metrics.get('total_trades', 0) or 0}`\n"
+                    f"🔄 Cycles ML: `{metrics.get('learning_cycles', 0) or 0}`\n\n"
                     f"⚙️ *Paramètres Actuels*\n\n"
-                    f"RSI: `{metrics.get('rsi_period', 14)}`\n"
-                    f"Confiance min: `{metrics.get('min_confidence', 0.6):.2f}`\n"
-                    f"Stop Loss: `{metrics.get('stop_loss', 2.0):.1f}%`\n"
-                    f"Take Profit: `{metrics.get('take_profit', 5.0):.1f}%`\n\n"
-                    f"🕐 Dernier apprentissage: `{metrics.get('last_learning', 'Jamais')}`"
+                    f"RSI: `{metrics.get('rsi_period', 14) or 14}`\n"
+                    f"Confiance min: `{metrics.get('min_confidence', 0.6) or 0.6:.2f}`\n"
+                    f"Stop Loss: `{metrics.get('stop_loss', 2.0) or 2.0:.1f}%`\n"
+                    f"Take Profit: `{metrics.get('take_profit', 5.0) or 5.0:.1f}%`\n\n"
+                    f"🕐 Dernier apprentissage: `{metrics.get('last_learning', 'Jamais') or 'Jamais'}`"
                 )
             else:
                 message = "⚠️ Système ML non initialisé"
