@@ -1,13 +1,23 @@
 # Trading Bot Configuration
 
 # Trading pairs to monitor
-# Choix de cryptos volatiles pour apprentissage rapide
+# Large diversification pour trouver les meilleures opportunités
 symbols:
-  - SOL/USDT    # Solana - haute volatilité
-  - AVAX/USDT   # Avalanche - mouvements fréquents
-  - MATIC/USDT  # Polygon - actif et volatile
-  - DOGE/USDT   # Dogecoin - très volatile
-  - ADA/USDT    # Cardano - bonne liquidité
+  - BTC/USDT    # Bitcoin - référence du marché
+  - ETH/USDT    # Ethereum - 2ème crypto, très liquide
+  - SOL/USDT    # Solana - haute volatilité, layer 1
+  - BNB/USDT    # Binance Coin - exchange token
+  - XRP/USDT    # Ripple - paiements internationaux
+  - ADA/USDT    # Cardano - smart contracts
+  - AVAX/USDT   # Avalanche - DeFi, layer 1
+  - DOGE/USDT   # Dogecoin - meme coin volatile
+  - MATIC/USDT  # Polygon - scaling Ethereum
+  - DOT/USDT    # Polkadot - interopérabilité
+  - LINK/USDT   # Chainlink - oracles
+  - UNI/USDT    # Uniswap - DEX leader
+  - ATOM/USDT   # Cosmos - interchain
+  - LTC/USDT    # Litecoin - paiements rapides
+  - NEAR/USDT   # Near Protocol - layer 1
 
 # Analysis timeframes
 timeframes:
