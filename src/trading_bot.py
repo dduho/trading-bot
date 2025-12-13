@@ -122,6 +122,11 @@ class TradingBot:
         self.intelligent_filter = IntelligentFilter(self.trade_db, self.config)
         logger.info("🧠 Intelligent Filter initialized - Quality-focused trading ACTIVE")
 
+        # Initialize Enhanced Strategy (improved win rate through better analysis)
+        from enhanced_strategy import EnhancedStrategy
+        self.enhanced_strategy = EnhancedStrategy(self.config)
+        logger.info("🚀 Enhanced Strategy initialized - Advanced market analysis ACTIVE")
+
         # Initialize Autonomous Watchdog (self-healing system)
         try:
             from autonomous_watchdog import AutonomousWatchdog
@@ -319,6 +324,9 @@ class TradingBot:
             # Calculate technical indicators
             df_with_indicators = self.analyzer.get_all_indicators(df)
 
+            # Analyze market regime (trending/ranging/transitional)
+            market_regime = self.enhanced_strategy.analyze_market_regime(df_with_indicators)
+
             # Generate trading signal
             signal_result = self.signal_generator.generate_signal(df_with_indicators)
 
@@ -374,6 +382,7 @@ class TradingBot:
                 'price': df['close'].iloc[-1],
                 'signal': signal_result,
                 'market': market_summary,
+                'market_regime': market_regime,
                 'dataframe': df_with_indicators,
                 'market_conditions': market_conditions
             }
@@ -409,6 +418,16 @@ class TradingBot:
         )
         if not should_trade:
             logger.info(f"🧠 FILTERED OUT: {symbol} - {filter_reason}")
+            return
+
+        # Enhanced Strategy: Regime-based filtering
+        market_regime = analysis.get('market_regime', {})
+        df = analysis.get('dataframe')
+        should_trade_regime, regime_reason = self.enhanced_strategy.should_take_trade(
+            signal, df, market_regime
+        )
+        if not should_trade_regime:
+            logger.info(f"🎯 REGIME FILTER: {symbol} - {regime_reason}")
             return
 
         # Check if we can open a position
@@ -449,10 +468,10 @@ class TradingBot:
                 return
 
         if signal['action'] == 'BUY' and can_open:
-            # Calculate position parameters
-            atr = analysis['dataframe']['atr'].iloc[-1] if 'atr' in analysis['dataframe'].columns else None
-            stop_loss = self.risk_manager.calculate_stop_loss(price, 'long', atr)
-            take_profit = self.risk_manager.calculate_take_profit(price, stop_loss, 'long')
+            # Calculate position parameters using enhanced strategy (dynamic stops based on regime)
+            stop_loss, take_profit = self.enhanced_strategy.get_dynamic_stops(
+                df, 'long', price, market_regime
+            )
 
             # Calculate position size
             quantity = self.risk_manager.calculate_position_size(
@@ -631,10 +650,10 @@ class TradingBot:
 
         # If SELL and no position open, open SHORT (paper synthetic)
         elif signal['action'] == 'SELL' and can_open:
-            # Calculate position parameters for short
-            atr = analysis['dataframe']['atr'].iloc[-1] if 'atr' in analysis['dataframe'].columns else None
-            stop_loss = self.risk_manager.calculate_stop_loss(price, 'short', atr)
-            take_profit = self.risk_manager.calculate_take_profit(price, stop_loss, 'short')
+            # Calculate position parameters using enhanced strategy (dynamic stops based on regime)
+            stop_loss, take_profit = self.enhanced_strategy.get_dynamic_stops(
+                df, 'short', price, market_regime
+            )
 
             quantity = self.risk_manager.calculate_position_size(
                 capital=self.capital,
