@@ -244,9 +244,12 @@ class RiskManager:
         if symbol in self.positions:
             return False, f"Position already open for {symbol}"
 
-        # IN PAPER MODE: Skip ALL limits (daily trades, max positions, cooldown)
+        # IN PAPER MODE: Skip daily trades and cooldown limits, but keep max positions
         if self.trading_mode == "paper":
-            return True, "OK (paper mode - no limits)"
+            # Still check max open positions to avoid overexposure
+            if len(self.positions) >= self.config['max_open_positions']:
+                return False, f"Max positions ({self.config['max_open_positions']}) reached"
+            return True, "OK (paper mode - limited checks)"
 
         # LIVE/TESTNET MODE: Apply all safety limits
         
