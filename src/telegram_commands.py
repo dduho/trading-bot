@@ -287,7 +287,9 @@ class TelegramCommandHandler:
             await update.message.reply_text(message, parse_mode='Markdown')
             
         except Exception as e:
+            import traceback
             logger.error(f"Erreur commande /ml: {e}")
+            logger.error(f"Traceback: {traceback.format_exc()}")
             await update.message.reply_text(f"❌ Erreur: {str(e)}")
     
     async def cmd_positions(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
