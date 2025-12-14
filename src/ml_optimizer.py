@@ -490,7 +490,10 @@ class MLOptimizer:
             win_rate = (winning_trades / total_trades * 100)
             
             # Calculate Sharpe ratio (simplified)
-            returns = [t.get('pnl_percent', 0) for t in closed_trades]
+            # Filter out None values from returns
+            returns = [t.get('pnl_percent', 0) or 0 for t in closed_trades]
+            # Remove any remaining None values
+            returns = [r for r in returns if r is not None]
             if returns and len(returns) > 1:
                 sharpe_ratio = (np.mean(returns) / np.std(returns)) if np.std(returns) > 0 else 0
             else:
