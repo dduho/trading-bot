@@ -1002,19 +1002,53 @@ class TradingBot:
                     else:
                         logger.warning(f"Learning cycle had errors: {learning_results.get('errors')}")
 
-                # Analyze all symbols
+                # OPTIMIZED: Analyze all 15 symbols in parallel with concurrent.futures
                 analyses = []
-                for symbol in self.symbols:
-                    analysis = self.analyze_symbol(symbol)
-                    if analysis:
-                        analyses.append(analysis)
-                        # Execute signal if confidence is high enough
-                        logger.info(f"🔍 DEBUG: {symbol} action={analysis['signal']['action']} conf={analysis['signal']['confidence']:.2%}")
-                        if analysis['signal']['action'] != 'HOLD':
-                            logger.info(f"🚀 DEBUG: Calling execute_signal for {symbol} {analysis['signal']['action']}")
-                            self.execute_signal(analysis)
-                        else:
-                            logger.info(f"⏸️ DEBUG: Skipping {symbol} - action is HOLD")
+                from concurrent.futures import ThreadPoolExecutor, as_completed
+
+                # SMART PRIORITIZATION: Analyze best performers first
+                # Get symbol performance to prioritize analysis
+                symbol_priorities = []
+                if hasattr(self, 'intelligent_filter') and self.intelligent_filter:
+                    for symbol in self.symbols:
+                        perf = self.intelligent_filter.get_symbol_performance(symbol)
+                        win_rate = perf.get('win_rate', 50)
+                        total_trades = perf.get('total_trades', 0)
+                        # Priority: good win rate + experience
+                        priority = win_rate * (1 + min(total_trades / 100, 1))
+                        symbol_priorities.append((symbol, priority))
+                    # Sort by priority (best first)
+                    symbol_priorities.sort(key=lambda x: x[1], reverse=True)
+                    prioritized_symbols = [s[0] for s in symbol_priorities]
+                    logger.info(f"📊 Symbol priority order: {', '.join([f'{s}({p:.0f})' for s, p in symbol_priorities[:5]])}")
+                else:
+                    prioritized_symbols = self.symbols
+
+                # Use ThreadPoolExecutor to analyze symbols in parallel
+                # With 1.9GB RAM, we can easily handle 5 concurrent analyses
+                with ThreadPoolExecutor(max_workers=5, thread_name_prefix="analyzer") as executor:
+                    # Submit all symbol analyses (prioritized order)
+                    future_to_symbol = {
+                        executor.submit(self.analyze_symbol, symbol): symbol
+                        for symbol in prioritized_symbols
+                    }
+
+                    # Process results as they complete (faster symbols finish first)
+                    for future in as_completed(future_to_symbol):
+                        symbol = future_to_symbol[future]
+                        try:
+                            analysis = future.result(timeout=10)  # 10s timeout per symbol
+                            if analysis:
+                                analyses.append(analysis)
+                                # Execute signal if confidence is high enough
+                                logger.info(f"🔍 DEBUG: {symbol} action={analysis['signal']['action']} conf={analysis['signal']['confidence']:.2%}")
+                                if analysis['signal']['action'] != 'HOLD':
+                                    logger.info(f"🚀 DEBUG: Calling execute_signal for {symbol} {analysis['signal']['action']}")
+                                    self.execute_signal(analysis)
+                                else:
+                                    logger.info(f"⏸️ DEBUG: Skipping {symbol} - action is HOLD")
+                        except Exception as e:
+                            logger.error(f"Error analyzing {symbol}: {e}")
 
                 # Update existing positions
                 self.update_positions()
