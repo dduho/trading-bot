@@ -1009,19 +1009,23 @@ class TradingBot:
                 # SMART PRIORITIZATION: Analyze best performers first
                 # Get symbol performance to prioritize analysis
                 symbol_priorities = []
-                if hasattr(self, 'intelligent_filter') and self.intelligent_filter:
-                    for symbol in self.symbols:
-                        perf = self.intelligent_filter.get_symbol_performance(symbol)
-                        win_rate = perf.get('win_rate', 50)
-                        total_trades = perf.get('total_trades', 0)
-                        # Priority: good win rate + experience
-                        priority = win_rate * (1 + min(total_trades / 100, 1))
-                        symbol_priorities.append((symbol, priority))
-                    # Sort by priority (best first)
-                    symbol_priorities.sort(key=lambda x: x[1], reverse=True)
-                    prioritized_symbols = [s[0] for s in symbol_priorities]
-                    logger.info(f"📊 Symbol priority order: {', '.join([f'{s}({p:.0f})' for s, p in symbol_priorities[:5]])}")
-                else:
+                try:
+                    if hasattr(self, 'symbol_selector') and self.symbol_selector:
+                        for symbol in self.symbols:
+                            perf = self.symbol_selector.get_symbol_performance(symbol)
+                            win_rate = perf.get('win_rate', 50)
+                            total_trades = perf.get('total_trades', 0)
+                            # Priority: good win rate + experience
+                            priority = win_rate * (1 + min(total_trades / 100, 1))
+                            symbol_priorities.append((symbol, priority))
+                        # Sort by priority (best first)
+                        symbol_priorities.sort(key=lambda x: x[1], reverse=True)
+                        prioritized_symbols = [s[0] for s in symbol_priorities]
+                        logger.info(f"📊 Symbol priority order: {', '.join([f'{s}({p:.0f})' for s, p in symbol_priorities[:5]])}")
+                    else:
+                        prioritized_symbols = self.symbols
+                except Exception as e:
+                    logger.warning(f"Could not prioritize symbols: {e}")
                     prioritized_symbols = self.symbols
 
                 # Use ThreadPoolExecutor to analyze symbols in parallel
