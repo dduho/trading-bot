@@ -127,6 +127,11 @@ class TradingBot:
         self.enhanced_strategy = EnhancedStrategy(self.config)
         logger.info("🚀 Enhanced Strategy initialized - Advanced market analysis ACTIVE")
 
+        # Initialize Professional Strategy (world-class trading system)
+        from professional_strategy import ProfessionalStrategy
+        self.professional_strategy = ProfessionalStrategy(self.config)
+        logger.info("⭐ Professional Strategy initialized - Trading like the pros!")
+
         # Initialize Autonomous Watchdog (self-healing system)
         try:
             from autonomous_watchdog import AutonomousWatchdog
@@ -430,6 +435,14 @@ class TradingBot:
             logger.info(f"🎯 REGIME FILTER: {symbol} - {regime_reason}")
             return
 
+        # PROFESSIONAL STRATEGY: Only A+ setups (like Mark Minervini)
+        should_trade_pro, pro_reasoning = self.professional_strategy.should_take_trade(
+            signal['action'], df, market_regime
+        )
+        if not should_trade_pro:
+            logger.info(f"⭐ PRO FILTER: {symbol} - {pro_reasoning}")
+            return
+
         # Check if we can open a position
         can_open, reason = self.risk_manager.can_open_position(symbol)
         logger.info(f"🔓 DEBUG: can_open={can_open}, reason={reason}")
@@ -477,9 +490,10 @@ class TradingBot:
                 return
 
         if signal['action'] == 'BUY' and can_open:
-            # Calculate position parameters using enhanced strategy (dynamic stops based on regime)
-            stop_loss, take_profit = self.enhanced_strategy.get_dynamic_stops(
-                df, 'long', price, market_regime
+            # Calculate position parameters using PROFESSIONAL STRATEGY (structure-based stops)
+            market_structure = self.professional_strategy.analyze_market_structure(df)
+            stop_loss, take_profit = self.professional_strategy.calculate_professional_stops(
+                df, 'long', price, market_structure
             )
 
             # Calculate position size
@@ -668,9 +682,10 @@ class TradingBot:
 
         # If SELL and no position open, open SHORT (paper synthetic)
         elif signal['action'] == 'SELL' and can_open:
-            # Calculate position parameters using enhanced strategy (dynamic stops based on regime)
-            stop_loss, take_profit = self.enhanced_strategy.get_dynamic_stops(
-                df, 'short', price, market_regime
+            # Calculate position parameters using PROFESSIONAL STRATEGY (structure-based stops)
+            market_structure = self.professional_strategy.analyze_market_structure(df)
+            stop_loss, take_profit = self.professional_strategy.calculate_professional_stops(
+                df, 'short', price, market_structure
             )
 
             quantity = self.risk_manager.calculate_position_size(
