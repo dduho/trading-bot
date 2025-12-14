@@ -138,15 +138,15 @@ class EnhancedStrategy:
             tp_distance = base_stop_distance * tp_multiplier
 
             # MINIMUM stops to ensure meaningful profits
-            min_stop = entry_price * 0.015  # Minimum 1.5% stop loss
-            min_tp = entry_price * 0.05     # Minimum 5% take profit - balance between profit and win rate
+            min_stop = entry_price * 0.02   # Minimum 2% stop loss
+            min_tp = entry_price * 0.06     # Minimum 6% take profit - ratio 3:1
 
             # Apply minimums (ATR might be too small for crypto volatility)
             stop_distance = max(stop_distance, min_stop)
             tp_distance = max(tp_distance, min_tp)
 
-            # Cap stop loss (max 2% in any case)
-            max_stop = entry_price * 0.02
+            # Cap stop loss (max 3% in any case for trending markets)
+            max_stop = entry_price * 0.03
             stop_distance = min(stop_distance, max_stop)
 
             # Ensure minimum risk/reward ratio of 1.5

@@ -442,7 +442,7 @@ class TradingBot:
                 # PROFIT PROTECTION: Don't close profitable SHORT positions too early
                 # For SHORT: profit when price goes DOWN
                 current_pnl_pct = (existing.entry_price - price) / existing.entry_price * 100
-                min_profit_to_close = 3.0  # Don't close until at least 3% profit
+                min_profit_to_close = 4.0  # Don't close until at least 4% profit
 
                 if current_pnl_pct > 0 and current_pnl_pct < min_profit_to_close:
                     logger.info(f"🔒 Keeping {symbol} SHORT open - only {current_pnl_pct:.2f}% profit (target: {min_profit_to_close}%)")
@@ -601,7 +601,7 @@ class TradingBot:
             # PROFIT PROTECTION: Don't close profitable positions too early
             # Calculate current PnL %
             current_pnl_pct = (price - position.entry_price) / position.entry_price * 100
-            min_profit_to_close = 3.0  # Don't close until at least 3% profit
+            min_profit_to_close = 4.0  # Don't close until at least 4% profit
 
             if current_pnl_pct > 0 and current_pnl_pct < min_profit_to_close:
                 logger.info(f"🔒 Keeping {symbol} LONG open - only {current_pnl_pct:.2f}% profit (target: {min_profit_to_close}%)")

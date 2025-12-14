@@ -50,31 +50,31 @@ indicators:
 # Trading strategy
 strategy:
   name: "Multi-Indicator Strategy"
-  min_confidence: 0.05  # MODE ULTRA AGRESSIF: 5% - MAXIMUM de trades pour apprentissage!
+  min_confidence: 0.25  # 25% confidence minimum - plus sélectif = meilleure qualité
 
-  # Signal weights - ÉQUILIBRÉS AU DÉPART (le ML va les optimiser)
+  # Signal weights - Pondération basée sur analyse performance
   weights:
-    rsi: 0.20            # 20% RSI
-    macd: 0.20           # 20% MACD
+    rsi: 0.25            # 25% RSI - bon indicateur de retournement
+    macd: 0.25           # 25% MACD - trend following efficace
     moving_averages: 0.20  # 20% Moving Averages
-    volume: 0.20         # 20% Volume
-    trend: 0.20          # 20% Trend
+    volume: 0.15         # 15% Volume - confirmateur
+    trend: 0.15          # 15% Trend - confirmateur
 
   anti_trend_filter:
-    enabled: false  # DÉSACTIVÉ temporairement pour maximiser trades pendant apprentissage
-    extra_conf_margin: 0.05  # Marge plus élevée pour démarrage prudent
+    enabled: true        # ACTIVÉ - évite trades contre-tendance dangereux
+    extra_conf_margin: 0.10  # Requiert 10% confidence supplémentaire contre tendance
 
 # Risk management
 risk:
-  max_position_size_percent: 3    # IMPROVED: 3% par position (balance volume/risk)
-  stop_loss_percent: 1.5          # CONSERVATEUR: Stop loss at 1.5%
-  take_profit_percent: 4.5        # RATIO 3:1 conservateur
-  trailing_stop_percent: 1.0
-  risk_reward_ratio: 3.0          # Ratio conservateur
-  max_open_positions: 5           # OPTIMIZED: 5 positions max (balance diversification/gestion)
-  max_daily_trades: 200           # INCREASED: 200 trades/jour - assez pour apprendre sans bloquer
-  max_daily_loss_percent: 100.0   # DÉSACTIVÉ pour apprentissage (paper trading only!)
-  cooldown_seconds: 30            # OPTIMIZED: 30s entre trades (réduit spam, garde vitesse)
+  max_position_size_percent: 5    # 5% par position - plus agressif pour paper trading
+  stop_loss_percent: 2.0          # 2% stop loss - protection raisonnable
+  take_profit_percent: 6.0        # 6% take profit - ratio 3:1 réaliste
+  trailing_stop_percent: 1.5      # Trailing stop à 1.5% pour sécuriser profits
+  risk_reward_ratio: 3.0          # Ratio 3:1 minimum
+  max_open_positions: 3           # 3 positions max - meilleure concentration
+  max_daily_trades: 50            # 50 trades/jour max - qualité > quantité
+  max_daily_loss_percent: 10.0    # Stop trading si -10% dans la journée
+  cooldown_seconds: 60            # 60s entre trades - évite overtrading
 
 # Execution settings
 execution:
