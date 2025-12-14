@@ -439,6 +439,15 @@ class TradingBot:
         if signal['action'] == 'BUY' and symbol in self.risk_manager.positions:
             existing = self.risk_manager.positions[symbol]
             if existing.side == 'short':
+                # PROFIT PROTECTION: Don't close profitable SHORT positions too early
+                # For SHORT: profit when price goes DOWN
+                current_pnl_pct = (existing.entry_price - price) / existing.entry_price * 100
+                min_profit_to_close = 2.0  # Don't close until at least 2% profit
+
+                if current_pnl_pct > 0 and current_pnl_pct < min_profit_to_close:
+                    logger.info(f"🔒 Keeping {symbol} SHORT open - only {current_pnl_pct:.2f}% profit (target: {min_profit_to_close}%)")
+                    return
+
                 # Buy to cover
                 order = None
                 order_type = self.config.get('execution', {}).get('order_type', 'market')
@@ -587,6 +596,15 @@ class TradingBot:
             # If we are LONG, SELL to close. If already SHORT, maintain position on SELL.
             if position.side == 'short':
                 logger.info(f"Maintaining existing SHORT on {symbol}; SELL signal reaffirmed.")
+                return
+
+            # PROFIT PROTECTION: Don't close profitable positions too early
+            # Calculate current PnL %
+            current_pnl_pct = (price - position.entry_price) / position.entry_price * 100
+            min_profit_to_close = 2.0  # Don't close until at least 2% profit
+
+            if current_pnl_pct > 0 and current_pnl_pct < min_profit_to_close:
+                logger.info(f"🔒 Keeping {symbol} LONG open - only {current_pnl_pct:.2f}% profit (target: {min_profit_to_close}%)")
                 return
 
             # Execute the SELL order to close LONG
