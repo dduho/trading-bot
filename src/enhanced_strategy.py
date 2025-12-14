@@ -139,7 +139,7 @@ class EnhancedStrategy:
 
             # MINIMUM stops to ensure meaningful profits
             min_stop = entry_price * 0.015  # Minimum 1.5% stop loss
-            min_tp = entry_price * 0.030    # Minimum 3.0% take profit
+            min_tp = entry_price * 0.10     # Minimum 10% take profit - go big or go home!
 
             # Apply minimums (ATR might be too small for crypto volatility)
             stop_distance = max(stop_distance, min_stop)
