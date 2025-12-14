@@ -31,9 +31,10 @@ class ProfessionalStrategy:
         self.config = config
 
         # Grade thresholds for setup quality
-        self.GRADE_A_PLUS = 80  # Only trade these
-        self.GRADE_A = 70
-        self.GRADE_B = 60
+        # Lowered from 80 to 65 to allow more quality trades (fresh DB needs building data)
+        self.GRADE_A_PLUS = 65  # Trade A+ setups
+        self.GRADE_A = 55
+        self.GRADE_B = 45
 
         # Multi-timeframe weights
         self.timeframe_weights = {
