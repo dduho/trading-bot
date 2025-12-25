@@ -129,8 +129,8 @@ class TradingBot:
 
         # Initialize Professional Strategy (world-class trading system)
         from professional_strategy import ProfessionalStrategy
-        self.professional_strategy = ProfessionalStrategy(self.config)
-        logger.info("⭐ Professional Strategy initialized - Trading like the pros!")
+        self.professional_strategy = ProfessionalStrategy(self.config, market_feed=self.market_feed)
+        logger.info("⭐ Professional Strategy initialized - Multi-timeframe analysis enabled!")
 
         # Initialize Autonomous Watchdog (self-healing system)
         try:
@@ -190,10 +190,37 @@ class TradingBot:
         """Restore open positions from database on startup"""
         try:
             open_trades = self.trade_db.get_trade_history(limit=100, status='open')
-            
+
             if open_trades:
+                max_positions = self.config.get('risk', {}).get('max_open_positions', 3)
+
+                # CRITICAL FIX: Respect max_open_positions limit when restoring
+                if len(open_trades) > max_positions:
+                    logger.warning(f"⚠️ Found {len(open_trades)} open positions in DB, but max is {max_positions}")
+                    logger.warning(f"   Will close excess positions to respect risk limits")
+
+                    # Sort by entry_time (keep oldest positions)
+                    open_trades_sorted = sorted(open_trades, key=lambda x: x['entry_time'])
+
+                    # Close excess positions
+                    for i, trade in enumerate(open_trades_sorted):
+                        if i >= max_positions:
+                            # Mark as closed in DB
+                            logger.info(f"   Closing excess position: {trade['symbol']}")
+                            try:
+                                self.trade_db.update_trade(trade['id'], {
+                                    'status': 'closed',
+                                    'exit_reason': 'Excess position cleanup (max_open_positions exceeded)',
+                                    'exit_time': datetime.now()
+                                })
+                            except Exception as e:
+                                logger.error(f"   Failed to close {trade['symbol']}: {e}")
+
+                    # Keep only first max_positions
+                    open_trades = open_trades_sorted[:max_positions]
+
                 logger.info(f"🔄 Restoring {len(open_trades)} open positions from database...")
-                
+
                 for trade in open_trades:
                     # Recréer l'objet Position
                     from risk_manager import Position
@@ -207,14 +234,14 @@ class TradingBot:
                     )
                     position.trade_id = trade['id']
                     position.entry_time = datetime.fromisoformat(trade['entry_time'])
-                    
+
                     # Ajouter au risk manager
                     self.risk_manager.positions[trade['symbol']] = position
-                    
+
                 logger.info(f"✅ Restored {len(open_trades)} positions: {list(self.risk_manager.positions.keys())}")
             else:
                 logger.info("ℹ️  No open positions to restore")
-                
+
         except Exception as e:
             logger.error(f"❌ Error restoring positions: {e}", exc_info=True)
 
@@ -435,12 +462,13 @@ class TradingBot:
             logger.info(f"🎯 REGIME FILTER: {symbol} - {regime_reason}")
             return
 
-        # PROFESSIONAL STRATEGY: Only A+ setups (like Mark Minervini)
+        # PROFESSIONAL STRATEGY: Only A+ setups (multi-timeframe confirmation)
         should_trade_pro, pro_reasoning = self.professional_strategy.should_take_trade(
-            signal['action'], df, market_regime
+            signal['action'], df, market_regime, symbol=symbol
         )
+        # ALWAYS log the PRO FILTER decision (accept OR reject)
+        logger.info(f"⭐ PRO FILTER: {symbol} - {pro_reasoning}")
         if not should_trade_pro:
-            logger.info(f"⭐ PRO FILTER: {symbol} - {pro_reasoning}")
             return
 
         # Check if we can open a position
@@ -496,13 +524,18 @@ class TradingBot:
                 df, 'long', price, market_structure
             )
 
-            # Calculate position size
-            quantity = self.risk_manager.calculate_position_size(
+            # Calculate position size with intelligent sizing based on setup quality
+            base_quantity = self.risk_manager.calculate_position_size(
                 capital=self.capital,
                 risk_percent=self.config['risk']['stop_loss_percent'],
                 entry_price=price,
                 stop_loss=stop_loss
             )
+
+            # Apply size multiplier from professional strategy (bigger size for better setups)
+            size_multiplier = getattr(self.professional_strategy, 'last_size_multiplier', 1.0)
+            quantity = base_quantity * size_multiplier
+            logger.info(f"📏 Position sizing: base={base_quantity:.6f}, multiplier={size_multiplier:.1f}x, final={quantity:.6f}")
 
             # Validate order before execution
             is_valid, error_msg = self.executor.validate_order(symbol, 'buy', quantity, price)
@@ -688,12 +721,18 @@ class TradingBot:
                 df, 'short', price, market_structure
             )
 
-            quantity = self.risk_manager.calculate_position_size(
+            # Calculate position size with intelligent sizing
+            base_quantity = self.risk_manager.calculate_position_size(
                 capital=self.capital,
                 risk_percent=self.config['risk']['stop_loss_percent'],
                 entry_price=price,
                 stop_loss=stop_loss
             )
+
+            # Apply size multiplier from professional strategy
+            size_multiplier = getattr(self.professional_strategy, 'last_size_multiplier', 1.0)
+            quantity = base_quantity * size_multiplier
+            logger.info(f"📏 Position sizing: base={base_quantity:.6f}, multiplier={size_multiplier:.1f}x, final={quantity:.6f}")
 
             is_valid, error_msg = self.executor.validate_order(symbol, 'sell', quantity, price)
             if not is_valid:

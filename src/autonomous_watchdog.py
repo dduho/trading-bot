@@ -155,54 +155,21 @@ class AutonomousWatchdog:
         """
         # Get trades from last hour
         one_hour_ago = datetime.now() - timedelta(hours=1)
-        two_hours_ago = datetime.now() - timedelta(hours=2)
         recent_trades = self.db.get_trade_history(limit=1000)
 
         # Filter trades from last hour
         recent_count = sum(1 for t in recent_trades
                           if datetime.fromisoformat(t['entry_time']) > one_hour_ago)
         
-        # Check for critical inactivity (no trades for >2h)
-        recent_2h_count = sum(1 for t in recent_trades
-                             if datetime.fromisoformat(t['entry_time']) > two_hours_ago)
-        
-        if recent_2h_count == 0:
-            logger.error(f"🚨 CRITICAL: NO TRADES for >2 hours!")
-            logger.error("🔧 AUTO-FIX: Emergency diagnostics...")
-            
-            # Diagnostic 1: Check if daily limit reached
-            if self.risk_manager:
-                current_daily = self.risk_manager.daily_trades
-                max_daily = self.config.get('risk', {}).get('max_daily_trades', 200)
-                logger.error(f"   Daily trades: {current_daily}/{max_daily}")
-                
-                if current_daily >= max_daily:
-                    logger.error(f"   → PROBLEM: Daily limit reached!")
-                    # Force reset if stuck
-                    if datetime.now().date() > self.risk_manager.last_reset:
-                        self.risk_manager.daily_trades = 0
-                        self.risk_manager.daily_pnl = 0
-                        self.risk_manager.last_reset = datetime.now().date()
-                        self.auto_fixes_applied.append("EMERGENCY: Force daily reset (>2h no trades)")
-            
-            # Diagnostic 2: Check confidence level
-            current_conf = self.config.get('strategy', {}).get('min_confidence', 0.05)
-            logger.error(f"   Confidence: {current_conf:.1%}")
-            if current_conf > 0.10:
-                logger.error(f"   → PROBLEM: Confidence too high!")
-                self.config['strategy']['min_confidence'] = 0.05
-                self.auto_fixes_applied.append(f"EMERGENCY: Confidence {current_conf:.1%} → 5%")
-            
-            # Diagnostic 3: Check open positions (might be maxed out)
-            open_positions = self.db.get_trade_history(limit=100, status='OPEN')
-            max_positions = self.config.get('risk', {}).get('max_open_positions', 5)
-            logger.error(f"   Open positions: {len(open_positions)}/{max_positions}")
-            if len(open_positions) >= max_positions:
-                logger.error(f"   → PROBLEM: Max positions reached!")
-                # Don't auto-close in this case, just warn
-            
-            self.last_intervention = datetime.now()
-            return f"CRITICAL: No trades for >2h - Emergency diagnostics applied"
+        # DISABLED: "No trades for >2h" surveillance
+        # With professional strategy, 0 trades in 2h is NORMAL (ultra-selective A+ setups)
+        # Professional traders make 1-3 trades/day, not every hour!
+        #
+        # recent_2h_count = sum(1 for t in recent_trades
+        #                      if datetime.fromisoformat(t['entry_time']) > two_hours_ago)
+        #
+        # if recent_2h_count == 0:
+        #     ... emergency diagnostics (REMOVED)
 
         if recent_count < self.min_trades_per_hour:
             logger.warning(f"⚠️ LOW TRADING ACTIVITY: Only {recent_count} trades in last hour (min: {self.min_trades_per_hour})")

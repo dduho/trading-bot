@@ -327,6 +327,11 @@ class RiskManager:
         """
         Update all positions and check stop loss/take profit
 
+        INTELLIGENT TRAILING STOP:
+        - Only activates after +3% profit
+        - Trails at 50% of profit (if +6%, trails to +3%)
+        - Lets winners run, locks in gains
+
         Args:
             prices: Dict of {symbol: current_price}
 
@@ -342,9 +347,38 @@ class RiskManager:
             current_price = prices[symbol]
             position.update_pnl(current_price)
 
-            # Check stop loss
+            # Calculate current profit %
+            if position.side == 'long':
+                profit_pct = ((current_price - position.entry_price) / position.entry_price) * 100
+            else:  # short
+                profit_pct = ((position.entry_price - current_price) / position.entry_price) * 100
+
+            # INTELLIGENT TRAILING STOP
+            # Activate after +3% profit, lock in 50% of profit
+            MIN_PROFIT_TO_TRAIL = 3.0  # 3%
+            PROFIT_LOCK_RATIO = 0.5    # Lock 50% of profit
+
+            if profit_pct > MIN_PROFIT_TO_TRAIL:
+                # Calculate new trailing stop (locks 50% of profit)
+                locked_profit_pct = profit_pct * PROFIT_LOCK_RATIO
+
+                if position.side == 'long':
+                    trailing_stop = position.entry_price * (1 + locked_profit_pct / 100)
+                    # Update stop loss if trailing stop is higher
+                    if trailing_stop > position.stop_loss:
+                        logger.info(f"📈 Trailing stop activated: {symbol} - Locking {locked_profit_pct:.1f}% profit (current: {profit_pct:.1f}%)")
+                        position.stop_loss = trailing_stop
+                else:  # short
+                    trailing_stop = position.entry_price * (1 - locked_profit_pct / 100)
+                    # Update stop loss if trailing stop is lower
+                    if trailing_stop < position.stop_loss:
+                        logger.info(f"📈 Trailing stop activated: {symbol} - Locking {locked_profit_pct:.1f}% profit (current: {profit_pct:.1f}%)")
+                        position.stop_loss = trailing_stop
+
+            # Check stop loss (including trailing stop)
             if position.check_stop_loss(current_price):
-                closed_pos = self.close_position(symbol, current_price, "Stop Loss Hit")
+                reason = "Trailing Stop Hit" if profit_pct > MIN_PROFIT_TO_TRAIL else "Stop Loss Hit"
+                closed_pos = self.close_position(symbol, current_price, reason)
                 if closed_pos:
                     closed.append(closed_pos.to_dict())
 

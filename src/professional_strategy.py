@@ -27,22 +27,183 @@ class ProfessionalStrategy:
     - Risk management (position sizing, stops)
     """
 
-    def __init__(self, config: dict):
+    def __init__(self, config: dict, market_feed=None):
         self.config = config
+        self.market_feed = market_feed  # For multi-timeframe analysis
 
         # Grade thresholds for setup quality
-        # Lowered from 80 to 65 to allow more quality trades (fresh DB needs building data)
-        self.GRADE_A_PLUS = 65  # Trade A+ setups
-        self.GRADE_A = 55
-        self.GRADE_B = 45
+        # Optimized for 1-3 trades/day (professional activity level)
+        # Lowered to 48 to adapt to low-structure ranging markets (Dec 2025)
+        self.GRADE_A_PLUS = 48  # Trade A+ setups (balanced for current market conditions)
+        self.GRADE_A = 40
+        self.GRADE_B = 30
 
-        # Multi-timeframe weights
+        # Multi-timeframe weights (higher TF = more weight)
         self.timeframe_weights = {
             '1h': 0.35,   # Higher timeframe = more weight
             '15m': 0.30,
             '5m': 0.20,
             '1m': 0.15
         }
+
+    def check_trading_hours(self) -> Tuple[bool, str, int]:
+        """
+        Time-based filter - avoid low liquidity hours
+
+        Best times:
+        - 13:00-17:00 UTC (EU/US overlap = max volume) → +5 bonus points
+        - 08:00-22:00 UTC (normal hours) → OK
+        - 00:00-06:00 UTC (Asian hours, low volume) → Penalize -5 points
+
+        Returns:
+            (should_trade, reason, score_adjustment)
+        """
+        try:
+            from datetime import datetime
+            import pytz
+
+            utc_now = datetime.now(pytz.UTC)
+            hour = utc_now.hour
+
+            # Peak hours (EU/US overlap)
+            if 13 <= hour < 17:
+                return True, f"Peak hours ({hour}:00 UTC - EU/US overlap)", 5
+
+            # Normal hours
+            elif 8 <= hour < 22:
+                return True, f"Normal hours ({hour}:00 UTC)", 0
+
+            # Low volume hours (avoid if possible, but allow with penalty)
+            else:
+                return True, f"Low volume hours ({hour}:00 UTC - Asian session)", -5
+
+        except Exception as e:
+            logger.error(f"Error checking trading hours: {e}")
+            return True, "Time check error", 0
+
+    def check_btc_correlation(self, symbol: str, signal_action: str) -> Tuple[bool, str]:
+        """
+        Bitcoin Correlation Filter - Don't fight BTC dominance!
+
+        Rule: If BTC is strongly bullish (+2%+), don't SHORT altcoins
+              If BTC is strongly bearish (-2%+), don't LONG altcoins
+
+        Altcoins follow BTC ~70% of the time
+        """
+        if not self.market_feed or symbol == 'BTC/USDT':
+            return True, "BTC or no data"
+
+        try:
+            # Get BTC price movement over last 1h
+            btc_df = self.market_feed.get_ohlcv('BTC/USDT', timeframe='1h', limit=2)
+            if btc_df.empty or len(btc_df) < 2:
+                return True, "No BTC data"
+
+            btc_prev = btc_df['close'].iloc[-2]
+            btc_current = btc_df['close'].iloc[-1]
+            btc_change_pct = ((btc_current - btc_prev) / btc_prev) * 100
+
+            # Strong BTC movement threshold
+            STRONG_MOVE = 2.0  # 2%
+
+            if signal_action == 'SELL':  # Trying to SHORT altcoin
+                if btc_change_pct > STRONG_MOVE:
+                    return False, f"BTC surging +{btc_change_pct:.1f}% - don't SHORT altcoins"
+                else:
+                    return True, f"BTC {btc_change_pct:+.1f}% - OK to SHORT"
+
+            elif signal_action == 'BUY':  # Trying to LONG altcoin
+                if btc_change_pct < -STRONG_MOVE:
+                    return False, f"BTC dumping {btc_change_pct:.1f}% - don't LONG altcoins"
+                else:
+                    return True, f"BTC {btc_change_pct:+.1f}% - OK to LONG"
+
+            return True, "No BTC conflict"
+
+        except Exception as e:
+            logger.error(f"Error checking BTC correlation: {e}")
+            return True, "BTC check error - allowing trade"
+
+    def analyze_multi_timeframe_trend(self, symbol: str, signal_action: str) -> Tuple[bool, str, int]:
+        """
+        Multi-timeframe trend confirmation (like professionals do)
+
+        A BUY signal on 1m is STRONGER if:
+        - 5m is also bullish (uptrend)
+        - 15m is also bullish
+        - 1h is also bullish
+
+        Returns:
+            (is_confirmed, reason, bonus_points)
+        """
+        if not self.market_feed:
+            return True, "No MTF data", 0
+
+        try:
+            timeframes = ['5m', '15m', '1h']
+            trend_votes = {'bullish': 0, 'bearish': 0, 'neutral': 0}
+            weights_sum = 0
+
+            for tf in timeframes:
+                try:
+                    df = self.market_feed.get_ohlcv(symbol, timeframe=tf, limit=50)
+                    if df.empty:
+                        continue
+
+                    # Simple trend: compare recent price to 20-period average
+                    closes = df['close'].values
+                    if len(closes) < 20:
+                        continue
+
+                    current = closes[-1]
+                    avg_20 = np.mean(closes[-20:])
+                    avg_50 = np.mean(closes) if len(closes) >= 50 else avg_20
+
+                    weight = self.timeframe_weights.get(tf, 0.1)
+
+                    # Determine trend
+                    if current > avg_20 and avg_20 > avg_50:
+                        trend_votes['bullish'] += weight
+                    elif current < avg_20 and avg_20 < avg_50:
+                        trend_votes['bearish'] += weight
+                    else:
+                        trend_votes['neutral'] += weight
+
+                    weights_sum += weight
+
+                except Exception as e:
+                    logger.debug(f"Error analyzing {tf} for {symbol}: {e}")
+                    continue
+
+            if weights_sum == 0:
+                return True, "No MTF data available", 0
+
+            # Normalize votes
+            bullish_pct = (trend_votes['bullish'] / weights_sum) * 100
+            bearish_pct = (trend_votes['bearish'] / weights_sum) * 100
+
+            # Check alignment
+            if signal_action == 'BUY':
+                if bullish_pct >= 70:  # 70%+ higher TFs bullish
+                    return True, f"MTF aligned: {bullish_pct:.0f}% bullish", 15
+                elif bullish_pct >= 50:
+                    return True, f"MTF partial: {bullish_pct:.0f}% bullish", 8
+                else:
+                    return False, f"MTF conflict: {bearish_pct:.0f}% bearish on higher TFs", 0
+
+            elif signal_action == 'SELL':
+                if bearish_pct >= 70:
+                    return True, f"MTF aligned: {bearish_pct:.0f}% bearish", 15
+                elif bearish_pct >= 50:
+                    return True, f"MTF partial: {bearish_pct:.0f}% bearish", 8
+                else:
+                    return False, f"MTF conflict: {bullish_pct:.0f}% bullish on higher TFs", 0
+
+            return True, "HOLD signal - no MTF check", 0
+
+        except Exception as e:
+            logger.error(f"Error in multi-timeframe analysis: {e}")
+            return True, "MTF error - allowing trade", 0
 
     def analyze_market_structure(self, df: pd.DataFrame) -> Dict:
         """
@@ -220,33 +381,53 @@ class ProfessionalStrategy:
                 reasons.append("✗ Price-volume divergence (-10)")
 
             # 3. MARKET STRUCTURE (20 points)
-            if structure.get('has_room_to_move', False):
-                score += 20
-                reasons.append(f"✓ Room to move: {structure.get('resistance_distance_pct', 0):.1f}% to resistance (+20)")
-            else:
-                score += 5
-                reasons.append("✗ Near resistance/support (+5)")
+            # BUG FIX: Don't reward unknown structure (999% distance means NO data, not infinite room!)
+            # Also reject levels too close (<1% = essentially at current price = invalid)
+            resistance_dist = structure.get('resistance_distance_pct', 999)
+            support_dist = structure.get('support_distance_pct', 999)
 
-            # 4. RISK/REWARD SETUP (15 points)
-            # Check if we have good R:R based on structure
-            if signal == 'BUY':
-                potential_reward = structure.get('resistance_distance_pct', 0)
-                potential_risk = structure.get('support_distance_pct', 3)
-            else:
-                potential_reward = structure.get('support_distance_pct', 0)
-                potential_risk = structure.get('resistance_distance_pct', 3)
+            # Only give points if we have REAL support/resistance levels (0.6-100% range)
+            # < 0.6% is too close (caused R:R bugs), > 100% is placeholder (999)
+            MIN_DISTANCE = 0.6  # Minimum 0.6% away (balanced: prevents bugs but allows tight structures)
+            MAX_DISTANCE = 100.0  # Maximum 100% (beyond this is likely 999 placeholder)
 
-            risk_reward = potential_reward / potential_risk if potential_risk > 0 else 0
-
-            if risk_reward >= 3:
-                score += 15
-                reasons.append(f"✓ Excellent R:R {risk_reward:.1f}:1 (+15)")
-            elif risk_reward >= 2:
-                score += 10
-                reasons.append(f"✓ Good R:R {risk_reward:.1f}:1 (+10)")
+            if (MIN_DISTANCE < resistance_dist < MAX_DISTANCE and
+                MIN_DISTANCE < support_dist < MAX_DISTANCE):  # Real levels found
+                if structure.get('has_room_to_move', False):
+                    score += 20
+                    reasons.append(f"✓ Room to move: {resistance_dist:.1f}% to R, {support_dist:.1f}% to S (+20)")
+                else:
+                    score += 5
+                    reasons.append(f"✗ Near resistance/support: {resistance_dist:.1f}%/{support_dist:.1f}% (+5)")
             else:
                 score += 0
-                reasons.append(f"✗ Poor R:R {risk_reward:.1f}:1 (+0)")
+                reasons.append("✗ No clear support/resistance structure (+0)")
+
+            # 4. RISK/REWARD SETUP (15 points)
+            # BUG FIX: Only calculate R:R if we have REAL levels (1-100% range)
+            if signal == 'BUY':
+                potential_reward = structure.get('resistance_distance_pct', 999)
+                potential_risk = structure.get('support_distance_pct', 999)
+            else:
+                potential_reward = structure.get('support_distance_pct', 999)
+                potential_risk = structure.get('resistance_distance_pct', 999)
+
+            # Only give points if BOTH reward and risk are in valid range (1-100%)
+            if (MIN_DISTANCE < potential_reward < MAX_DISTANCE and
+                MIN_DISTANCE < potential_risk < MAX_DISTANCE):
+                risk_reward = potential_reward / potential_risk
+                if risk_reward >= 3:
+                    score += 15
+                    reasons.append(f"✓ Excellent R:R {risk_reward:.1f}:1 (+15)")
+                elif risk_reward >= 2:
+                    score += 10
+                    reasons.append(f"✓ Good R:R {risk_reward:.1f}:1 (+10)")
+                else:
+                    score += 0
+                    reasons.append(f"✗ Poor R:R {risk_reward:.1f}:1 (+0)")
+            else:
+                score += 0
+                reasons.append("✗ Cannot calculate R:R - no structure (+0)")
 
             # 5. CONFLUENCE OF INDICATORS (15 points)
             regime = market_regime.get('regime', 'unknown')
@@ -286,23 +467,107 @@ class ProfessionalStrategy:
             logger.error(f"Error grading setup: {e}")
             return 0, f"Error grading: {e}"
 
-    def should_take_trade(self, signal: str, df: pd.DataFrame, market_regime: Dict) -> Tuple[bool, str]:
+    def should_take_trade(self, signal: str, df: pd.DataFrame, market_regime: Dict, symbol: str = None) -> Tuple[bool, str]:
         """
         Final decision: Should we take this trade?
 
         Rules (like the pros):
-        1. ONLY take A+ setups (80+)
-        2. Never trade against major trend
-        3. Must have volume confirmation
-        4. Must have room to move (not at resistance)
+        1. Don't fight BTC dominance (correlation filter)
+        2. Multi-timeframe trend confirmation
+        3. ONLY take A+ setups (65+)
+        4. Must have volume confirmation
+        5. Must have room to move (not at resistance)
         """
+        # BTC Correlation check (FIRST - don't fight the market)
+        if symbol and self.market_feed:
+            btc_ok, btc_reason = self.check_btc_correlation(symbol, signal)
+            if not btc_ok:
+                return False, f"⛔ BTC FILTER: {btc_reason}"
+
+        # Multi-timeframe confirmation (FILTER before grading)
+        if symbol and self.market_feed:
+            mtf_ok, mtf_reason, mtf_bonus = self.analyze_multi_timeframe_trend(symbol, signal)
+            if not mtf_ok:
+                return False, f"⛔ MTF REJECT: {mtf_reason}"
+
         score, reasoning = self.grade_setup(df, signal, market_regime)
 
-        # STRICT: Only A+ setups
-        if score >= self.GRADE_A_PLUS:
-            return True, f"✅ TRADE: {reasoning}"
+        # Apply MTF bonus if available
+        if symbol and self.market_feed:
+            mtf_ok, mtf_reason, mtf_bonus = self.analyze_multi_timeframe_trend(symbol, signal)
+            if mtf_bonus > 0:
+                score += mtf_bonus
+                score = min(score, 100)  # Cap at 100
+                reasoning += f" | {mtf_reason} (+{mtf_bonus})"
+
+        # TIME-BASED ADJUSTMENT (peak hours bonus, low volume penalty)
+        time_ok, time_reason, time_adjustment = self.check_trading_hours()
+        if time_adjustment != 0:
+            score += time_adjustment
+            score = max(0, min(score, 100))  # Keep in 0-100 range
+            reasoning += f" | {time_reason} ({time_adjustment:+d})"
+
+        # DYNAMIC THRESHOLD based on market volatility (ATR)
+        # Optimized for 1-3 trades/day (professional activity)
+        # High volatility (ATR > 3%) → Lower threshold (more opportunities)
+        # Normal volatility → Standard 55
+        # Low volatility (ATR < 1%) → Slightly higher (more selective but not blocking)
+        volatility = market_regime.get('volatility', 'medium')
+        atr_value = df['atr'].iloc[-1] if 'atr' in df.columns and len(df) > 0 else 0
+        current_price = df['close'].iloc[-1] if 'close' in df.columns and len(df) > 0 else 1
+        atr_pct = (atr_value / current_price * 100) if current_price > 0 else 0
+
+        dynamic_threshold = self.GRADE_A_PLUS  # Default 55
+
+        if atr_pct > 3.0:  # High volatility
+            dynamic_threshold = 50  # More opportunities in volatile markets
+            threshold_note = f"(threshold lowered to {dynamic_threshold} due to high volatility {atr_pct:.1f}%)"
+        elif atr_pct < 1.0:  # Low volatility
+            # Keep standard threshold even in low volatility (was 60, then 70)
+            # Reason: Market structure validation already filters bad setups
+            # Professional traders adapt to market conditions, don't sit idle
+            threshold_note = f"(standard threshold {dynamic_threshold}, low volatility {atr_pct:.1f}%)"
         else:
-            return False, f"⛔ SKIP: {reasoning}"
+            threshold_note = f"(standard threshold {dynamic_threshold}, ATR {atr_pct:.1f}%)"
+
+        # Calculate position size multiplier based on score
+        size_multiplier = self.calculate_position_size_multiplier(score)
+
+        # Log final score after all adjustments for debugging
+        logger.info(f"📊 FINAL SCORE AFTER ADJUSTMENTS: {score}/100 vs threshold {dynamic_threshold}")
+
+        # STRICT: Only A+ setups (with dynamic threshold)
+        if score >= dynamic_threshold:
+            # Store score and multiplier as attributes for execute_signal to use
+            self.last_score = score
+            self.last_size_multiplier = size_multiplier
+            return True, f"✅ TRADE AUTHORIZED: Grade A+ ({score}/{dynamic_threshold}, size {size_multiplier:.1f}x) {threshold_note}: {reasoning}"
+        else:
+            self.last_score = score
+            self.last_size_multiplier = 0
+            return False, f"⛔ SKIP ({score}/{dynamic_threshold}) {threshold_note}: {reasoning}"
+
+    def calculate_position_size_multiplier(self, score: int) -> float:
+        """
+        Intelligent position sizing based on setup quality
+
+        Grade A+ (80-100): 1.4x size (best setups deserve more capital)
+        Grade A+ (70-79): 1.2x size
+        Grade A+ (65-69): 1.0x size (standard)
+        Grade A (55-64): 0.6x size (if dynamic threshold allows)
+
+        Returns multiplier to apply to base position size
+        """
+        if score >= 80:
+            return 1.4  # Best setups - go bigger
+        elif score >= 70:
+            return 1.2  # Good setups - slightly bigger
+        elif score >= 65:
+            return 1.0  # Standard size
+        elif score >= 55:
+            return 0.6  # Marginal setups (high volatility) - smaller size
+        else:
+            return 0.5  # Safety minimum
 
     def calculate_professional_stops(
         self,

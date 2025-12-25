@@ -1,8 +1,9 @@
 # Trading Bot Configuration
 
 # Trading pairs to monitor
-# Large diversification pour trouver les meilleures opportunités
+# Large diversification: crypto + forex pour trouver les meilleures opportunités
 symbols:
+  # Cryptocurrencies
   - BTC/USDT    # Bitcoin - référence du marché
   - ETH/USDT    # Ethereum - 2ème crypto, très liquide
   - SOL/USDT    # Solana - haute volatilité, layer 1
@@ -18,6 +19,11 @@ symbols:
   - ATOM/USDT   # Cosmos - interchain
   - LTC/USDT    # Litecoin - paiements rapides
   - NEAR/USDT   # Near Protocol - layer 1
+
+  # Forex pairs (more stable, less volatile than crypto)
+  - EUR/USDT    # Euro/Dollar - paire forex majeure
+  - GBP/USDT    # Pound/Dollar - paire forex majeure
+  - AUD/USDT    # Australian Dollar - matières premières
 
 # Analysis timeframes
 timeframes:
@@ -148,3 +154,43 @@ notifications:
     rate_limit:
       max_messages_per_hour: 30
       cooldown_between_messages: 2  # secondes entre chaque message
+
+# Market Alerts - Surveillance des indices et actions (analyse seule, pas de trading)
+market_alerts:
+  enabled: true
+  check_interval_minutes: 15  # Analyser toutes les 15 minutes
+
+  # Indices à surveiller (via API externe Yahoo Finance)
+  indices:
+    - symbol: "^FCHI"     # CAC 40
+      name: "CAC 40"
+      alert_threshold: 0.5  # Alerter si mouvement > 0.5%
+
+    - symbol: "^GDAXI"    # DAX
+      name: "DAX"
+      alert_threshold: 0.5
+
+    - symbol: "^GSPC"     # S&P 500
+      name: "S&P 500"
+      alert_threshold: 0.5
+
+    - symbol: "EURUSD=X"  # EUR/USD Forex
+      name: "EUR/USD"
+      alert_threshold: 0.2
+
+    - symbol: "GBPUSD=X"  # GBP/USD Forex
+      name: "GBP/USD"
+      alert_threshold: 0.2
+
+  # Actions à surveiller
+  stocks:
+    - symbol: "UBI.PA"    # Ubisoft
+      name: "Ubisoft"
+      alert_threshold: 1.0  # Alerter si mouvement > 1%
+
+  # Notifications Telegram pour les alertes
+  telegram_alerts:
+    enabled: true
+    send_on_movement: true      # Envoyer alerte sur mouvement significatif
+    send_technical_analysis: true  # Inclure analyse technique (RSI, MACD)
+    send_trade_suggestion: true    # Suggérer BUY/SELL/HOLD
