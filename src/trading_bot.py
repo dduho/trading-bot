@@ -472,7 +472,13 @@ class TradingBot:
             return
 
         # Check if we can open a position
-        can_open, reason = self.risk_manager.can_open_position(symbol)
+        market_context = analysis.get('market_conditions', {}) or {}
+        can_open, reason = self.risk_manager.can_open_position(
+            symbol,
+            market_context=market_context,
+            current_equity=self.capital,
+            current_price=price
+        )
         logger.info(f"🔓 DEBUG: can_open={can_open}, reason={reason}")
 
         # BUY signal
@@ -556,13 +562,25 @@ class TradingBot:
                 # Order executed successfully - track position
                 actual_price = order.get('price', price)
 
+                # Position metadata for smarter risk controls
+                expected_rr = abs(take_profit - actual_price) / abs(actual_price - stop_loss) if stop_loss and take_profit else None
+                position_meta = {
+                    **market_context,
+                    'expected_rr': expected_rr,
+                    'trend_bias': market_regime.get('trend') if market_regime else None,
+                    'atr': market_context.get('atr'),
+                    'max_duration_minutes': self.config.get('risk', {}).get('max_position_duration_minutes')
+                }
+
                 position = self.risk_manager.open_position(
                     symbol=symbol,
                     side='long',
                     entry_price=actual_price,
                     quantity=quantity,
                     stop_loss=stop_loss,
-                    take_profit=take_profit
+                    take_profit=take_profit,
+                    meta=position_meta,
+                    current_equity=self.capital
                 )
 
                 if position:
@@ -748,13 +766,25 @@ class TradingBot:
 
             if order:
                 actual_price = order.get('price', price)
+
+                expected_rr = abs(take_profit - actual_price) / abs(actual_price - stop_loss) if stop_loss and take_profit else None
+                position_meta = {
+                    **market_context,
+                    'expected_rr': expected_rr,
+                    'trend_bias': market_regime.get('trend') if market_regime else None,
+                    'atr': market_context.get('atr'),
+                    'max_duration_minutes': self.config.get('risk', {}).get('max_position_duration_minutes')
+                }
+
                 position = self.risk_manager.open_position(
                     symbol=symbol,
                     side='short',
                     entry_price=actual_price,
                     quantity=quantity,
                     stop_loss=stop_loss,
-                    take_profit=take_profit
+                    take_profit=take_profit,
+                    meta=position_meta,
+                    current_equity=self.capital
                 )
 
                 if position:
@@ -828,8 +858,9 @@ class TradingBot:
             if ticker:
                 prices[symbol] = ticker['last']
 
-        # Update positions
-        closed = self.risk_manager.update_positions(prices)
+        # Update positions with stored context for ATR/trend-aware trailing
+        contexts = {sym: pos.meta for sym, pos in self.risk_manager.positions.items()}
+        closed = self.risk_manager.update_positions(prices, contexts)
 
         # Print closed positions and update database
         for pos in closed:

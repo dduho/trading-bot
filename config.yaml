@@ -75,12 +75,27 @@ risk:
   max_position_size_percent: 5    # 5% par position - plus agressif pour paper trading
   stop_loss_percent: 2.0          # 2% stop loss - protection raisonnable
   take_profit_percent: 6.0        # 6% take profit - ratio 3:1 réaliste
-  trailing_stop_percent: 1.5      # Trailing stop à 1.5% pour sécuriser profits
+  trailing_stop_percent: 1.5      # Trailing stop à 1.5% pour sécuriser profits (fallback)
+  atr_trailing_multiplier: 1.8    # Trailing stop basé sur ATR (distance = ATR * 1.8)
+  break_even_rr: 1.0              # Passer au break-even à partir de 1R gagné
+  max_risk_per_trade_percent: 1.0 # Plafond de risque dur par trade
+  trade_cost_percent: 0.08        # Coût estimé aller/retour (frais + slippage) en %
+  slippage_buffer_percent: 0.05   # Buffer intégré dans le sizing pour éviter l'oversize
   risk_reward_ratio: 3.0          # Ratio 3:1 minimum
   max_open_positions: 3           # 3 positions max - meilleure concentration
   max_daily_trades: 50            # 50 trades/jour max - qualité > quantité
   max_daily_loss_percent: 10.0    # Stop trading si -10% dans la journée
+  max_position_duration_minutes: 720  # Time-stop à 12h
   cooldown_seconds: 60            # 60s entre trades - évite overtrading
+  volatility_cooldown_multiplier: 0.0 # Désactivé pour ne pas bloquer opportunités
+  volatility_cooldown_atr_threshold_pct: 2.5 # N'applique que si ATR% > 2.5%
+  volatility_cooldown_max_extra: 2.0    # Cap extension à 2x le cooldown
+  correlation_groups:             # Limiter l'exposition corrélée (1 position max par groupe)
+    - ["EUR/USDT", "GBP/USDT", "AUD/USDT"]  # Forex - tous corrélés
+    - ["BTC/USDT", "ETH/USDT", "BNB/USDT", "SOL/USDT", "AVAX/USDT", "MATIC/USDT"]  # Crypto
+  max_positions_per_group: 1      # Max 1 forex + 1 crypto simultanés (diversification)
+  blocked_hours: []               # Désactivé - crypto trade 24/7
+  close_all_on_loss_cut: false    # False: garde les positions gagnantes au cutoff
 
 # Execution settings
 execution:

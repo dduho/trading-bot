@@ -17,7 +17,8 @@ class Position:
 
     def __init__(self, symbol: str, side: str, entry_price: float,
                  quantity: float, stop_loss: float = None,
-                 take_profit: float = None):
+                 take_profit: float = None,
+                 meta: Optional[Dict] = None):
         self.symbol = symbol
         self.side = side  # 'long' or 'short'
         self.entry_price = entry_price
@@ -30,13 +31,28 @@ class Position:
         self.pnl = 0
         self.status = 'open'  # 'open', 'closed'
         self.trade_id = None  # Database trade ID for learning system
+        self.meta = meta or {}
 
-    def update_pnl(self, current_price: float) -> float:
-        """Calculate current profit/loss"""
+        # Analytics/risk metadata
+        self.initial_risk = abs(entry_price - stop_loss) if stop_loss else None
+        self.atr_at_entry = self.meta.get('atr')
+        self.trend_bias = self.meta.get('trend_bias')
+        self.expected_rr = self.meta.get('expected_rr')
+        self.max_duration_minutes = self.meta.get('max_duration_minutes')
+        self.break_even_armed = False
+
+    def update_pnl(self, current_price: float,
+                   cost_rate: float = 0.0) -> float:
+        """Calculate current profit/loss, accounting for estimated costs"""
         if self.side == 'long':
-            self.pnl = (current_price - self.entry_price) * self.quantity
+            raw_pnl = (current_price - self.entry_price) * self.quantity
         else:  # short
-            self.pnl = (self.entry_price - current_price) * self.quantity
+            raw_pnl = (self.entry_price - current_price) * self.quantity
+
+        # Apply estimated round-trip cost once (entry + exit)
+        notional = self.entry_price * self.quantity
+        cost_penalty = notional * (cost_rate / 100)
+        self.pnl = raw_pnl - cost_penalty
         return self.pnl
 
     def check_stop_loss(self, current_price: float) -> bool:
@@ -61,12 +77,12 @@ class Position:
             return True
         return False
 
-    def close(self, exit_price: float):
+    def close(self, exit_price: float, cost_rate: float = 0.0):
         """Close the position"""
         self.exit_price = exit_price
         self.exit_time = datetime.now()
         self.status = 'closed'
-        self.update_pnl(exit_price)
+        self.update_pnl(exit_price, cost_rate)
 
     def to_dict(self) -> Dict:
         """Convert position to dictionary"""
@@ -82,7 +98,11 @@ class Position:
             'status': self.status,
             'entry_time': self.entry_time,  # Return datetime object instead of isoformat
             'exit_time': self.exit_time,
-            'trade_id': self.trade_id
+            'trade_id': self.trade_id,
+            'atr_at_entry': self.atr_at_entry,
+            'expected_rr': self.expected_rr,
+            'max_duration_minutes': self.max_duration_minutes,
+            'break_even_armed': self.break_even_armed
         }
 
 
@@ -105,6 +125,11 @@ class RiskManager:
         self.daily_trades = 0
         self.last_reset = datetime.now().date()
         self.last_trade_time: Dict[str, datetime] = {}  # Per-symbol cooldown tracking
+        self.last_known_equity: Optional[float] = self.config.get('starting_equity')
+
+        # Cost/volatility controls
+        self.trade_cost_percent = self.config.get('trade_cost_percent', 0.0)
+        self.slippage_buffer_percent = self.config.get('slippage_buffer_percent', 0.0)
         
         # In paper mode, disable all limits
         if self.trading_mode == "paper":
@@ -117,10 +142,23 @@ class RiskManager:
             'stop_loss_percent': 2.0,
             'take_profit_percent': 5.0,
             'trailing_stop_percent': 1.5,
+            'atr_trailing_multiplier': 1.5,  # ATR-based trailing distance
+            'break_even_rr': 1.0,  # Move stop to BE after 1R
+            'max_risk_per_trade_percent': 1.0,  # Hard cap per trade
+            'trade_cost_percent': 0.05,  # Estimated round-trip cost (fees+slippage)
+            'slippage_buffer_percent': 0.05,  # Extra buffer in sizing for slippage
             'max_open_positions': 3,
             'max_daily_trades': 10,
             'max_daily_loss_percent': 5.0,
-            'risk_reward_ratio': 2.0  # Min risk/reward ratio
+            'max_position_duration_minutes': 720,  # Time stop (12h)
+            'risk_reward_ratio': 2.0,  # Min risk/reward ratio
+            'correlation_groups': [],  # [["BTC/USDT", "ETH/USDT"]]
+            'max_positions_per_group': 1,
+            'volatility_cooldown_multiplier': 0.0,  # Extend cooldown when ATR is high
+            'volatility_cooldown_atr_threshold_pct': 2.0,  # Apply cooldown only above this ATR%
+            'volatility_cooldown_max_extra': 2.0,  # Cap extension to 2x cooldown
+            'close_all_on_loss_cut': False,  # If False, keep winners when loss cut hits
+            'blocked_hours': []  # ["00:00-02:00"]
         }
 
     def reset_daily_stats(self):
@@ -158,12 +196,26 @@ class RiskManager:
         Returns:
             Position size (quantity)
         """
+        self.last_known_equity = capital
+
+        # Enforce hard cap on risk per trade
+        max_risk_pct = self.config.get('max_risk_per_trade_percent', risk_percent)
+        effective_risk_pct = min(risk_percent, max_risk_pct)
+
         # Maximum position size based on config
         max_position_value = capital * (self.config['max_position_size_percent'] / 100)
 
         # Risk-based position sizing
-        risk_amount = capital * (risk_percent / 100)
+        risk_amount = capital * (effective_risk_pct / 100)
+
+        if stop_loss is None:
+            logger.warning("Stop loss missing, defaulting to max position size cap")
+            return max_position_value / entry_price
+
+        # Add slippage buffer to stop distance to avoid oversizing
         price_diff = abs(entry_price - stop_loss)
+        if self.slippage_buffer_percent:
+            price_diff += entry_price * (self.slippage_buffer_percent / 100)
 
         if price_diff == 0:
             logger.warning("Stop loss equals entry price, using max position size")
@@ -178,7 +230,10 @@ class RiskManager:
         else:
             quantity = risk_based_quantity
 
-        logger.info(f"Calculated position size: {quantity:.4f} (value: ${quantity * entry_price:.2f})")
+        logger.info(
+            f"Calculated position size: {quantity:.4f} (value: ${quantity * entry_price:.2f}) "
+            f"| risk {effective_risk_pct:.2f}% capped at {max_risk_pct:.2f}%"
+        )
         return quantity
 
     def calculate_stop_loss(self, entry_price: float, side: str,
@@ -231,7 +286,10 @@ class RiskManager:
 
         return take_profit
 
-    def can_open_position(self, symbol: str) -> Tuple[bool, str]:
+    def can_open_position(self, symbol: str,
+                          market_context: Optional[Dict] = None,
+                          current_equity: Optional[float] = None,
+                          current_price: Optional[float] = None) -> Tuple[bool, str]:
         """
         Check if a new position can be opened
 
@@ -239,6 +297,27 @@ class RiskManager:
             Tuple of (can_open, reason)
         """
         self.reset_daily_stats()
+        equity = current_equity or self.last_known_equity
+        if equity:
+            self.last_known_equity = equity
+
+        # Hard trading curfew windows (e.g., low-liquidity hours)
+        blocked_hours = self.config.get('blocked_hours', [])
+        now = datetime.now().time()
+        for window in blocked_hours:
+            try:
+                start_str, end_str = window.split('-')
+                start = datetime.strptime(start_str, "%H:%M").time()
+                end = datetime.strptime(end_str, "%H:%M").time()
+                if start <= now <= end:
+                    return False, f"Trading blocked during {window}"
+            except Exception:
+                logger.warning(f"Invalid blocked_hours window: {window}")
+
+        # Daily loss cut - stop opening new trades
+        daily_loss_pct = self.config.get('max_daily_loss_percent')
+        if equity and daily_loss_pct and self.daily_pnl <= -(equity * daily_loss_pct / 100):
+            return False, f"Daily loss limit reached ({daily_loss_pct}%)"
 
         # Check if position already exists
         if symbol in self.positions:
@@ -253,12 +332,37 @@ class RiskManager:
 
         # LIVE/TESTNET MODE: Apply all safety limits
         
-        # Cooldown check
+        # Correlation exposure check
+        groups = self.config.get('correlation_groups', [])
+        max_group_positions = self.config.get('max_positions_per_group', 1)
+        for group in groups:
+            if symbol in group:
+                open_in_group = sum(1 for sym in self.positions if sym in group)
+                if open_in_group >= max_group_positions:
+                    return False, f"Correlation limit reached for group {group}"
+
+        # Cooldown check (extended when volatility is high)
         cooldown = self.config.get('cooldown_seconds')
         if cooldown and symbol in self.last_trade_time:
             elapsed = (datetime.now() - self.last_trade_time[symbol]).total_seconds()
-            if elapsed < cooldown:
-                return False, f"Cooldown active ({int(cooldown - elapsed)}s remaining)"
+            effective_cooldown = cooldown
+
+            # Extend cooldown based on ATR percent if provided
+            if market_context and current_price:
+                atr = market_context.get('atr')
+                if atr and atr > 0:
+                    atr_pct = (atr / current_price) * 100
+                    mult = self.config.get('volatility_cooldown_multiplier', 0.0)
+                    threshold = self.config.get('volatility_cooldown_atr_threshold_pct', 0.0)
+                    max_extra = self.config.get('volatility_cooldown_max_extra', 0.0)
+                    if mult > 0 and atr_pct >= threshold:
+                        extra = cooldown * mult * (atr_pct / 100)
+                        if max_extra > 0:
+                            extra = min(extra, cooldown * max_extra)
+                        effective_cooldown += extra
+
+            if elapsed < effective_cooldown:
+                return False, f"Cooldown active ({int(effective_cooldown - elapsed)}s remaining)"
 
         # Check max open positions
         if len(self.positions) >= self.config['max_open_positions']:
@@ -272,14 +376,21 @@ class RiskManager:
 
     def open_position(self, symbol: str, side: str, entry_price: float,
                      quantity: float, stop_loss: float = None,
-                     take_profit: float = None) -> Optional[Position]:
+                     take_profit: float = None,
+                     meta: Optional[Dict] = None,
+                     current_equity: Optional[float] = None) -> Optional[Position]:
         """
         Open a new position
 
         Returns:
             Position object if successful, None otherwise
         """
-        can_open, reason = self.can_open_position(symbol)
+        can_open, reason = self.can_open_position(
+            symbol,
+            market_context=meta,
+            current_equity=current_equity,
+            current_price=entry_price
+        )
         if not can_open:
             logger.warning(f"Cannot open position: {reason}")
             return None
@@ -290,8 +401,13 @@ class RiskManager:
             entry_price=entry_price,
             quantity=quantity,
             stop_loss=stop_loss,
-            take_profit=take_profit
+            take_profit=take_profit,
+            meta=meta or {}
         )
+
+        # Attach time stop if provided in meta or config
+        if not position.max_duration_minutes:
+            position.max_duration_minutes = self.config.get('max_position_duration_minutes')
 
         self.positions[symbol] = position
         self.daily_trades += 1
@@ -312,7 +428,7 @@ class RiskManager:
             return None
 
         position = self.positions[symbol]
-        position.close(exit_price)
+        position.close(exit_price, cost_rate=self.trade_cost_percent)
 
         self.daily_pnl += position.pnl
         self.closed_positions.append(position)
@@ -323,7 +439,8 @@ class RiskManager:
         logger.info(f"Closed position: {symbol} @ {exit_price} | PnL: ${position.pnl:.2f} | Reason: {reason}")
         return position
 
-    def update_positions(self, prices: Dict[str, float]) -> List[Dict]:
+    def update_positions(self, prices: Dict[str, float],
+                         market_contexts: Optional[Dict[str, Dict]] = None) -> List[Dict]:
         """
         Update all positions and check stop loss/take profit
 
@@ -340,44 +457,107 @@ class RiskManager:
         """
         closed = []
 
+        # Global loss cut: close everything if daily loss limit breached
+        equity_ref = self.last_known_equity
+        loss_limit = self.config.get('max_daily_loss_percent')
+        if equity_ref and loss_limit and self.daily_pnl <= -(equity_ref * loss_limit / 100):
+            logger.error(f"🛑 Daily loss limit reached ({loss_limit}%), enforcing loss cut")
+            close_all = self.config.get('close_all_on_loss_cut', False)
+            for symbol, position in list(self.positions.items()):
+                close_price = prices.get(symbol)
+                if close_price is None:
+                    continue
+                # Keep winners if configured
+                if not close_all:
+                    position.update_pnl(close_price, cost_rate=self.trade_cost_percent)
+                    if position.pnl > 0:
+                        continue
+                closed_pos = self.close_position(symbol, close_price, "Daily Loss Cut")
+                if closed_pos:
+                    closed.append(closed_pos.to_dict())
+            return closed
+
         for symbol, position in list(self.positions.items()):
             if symbol not in prices:
                 continue
 
+            context = (market_contexts or {}).get(symbol, {})
             current_price = prices[symbol]
-            position.update_pnl(current_price)
+            position.update_pnl(current_price, cost_rate=self.trade_cost_percent)
 
-            # Calculate current profit %
+            # Calculate profit stats
             if position.side == 'long':
                 profit_pct = ((current_price - position.entry_price) / position.entry_price) * 100
+                price_move = current_price - position.entry_price
             else:  # short
                 profit_pct = ((position.entry_price - current_price) / position.entry_price) * 100
+                price_move = position.entry_price - current_price
 
-            # INTELLIGENT TRAILING STOP
-            # Activate after +3% profit, lock in 50% of profit
-            MIN_PROFIT_TO_TRAIL = 3.0  # 3%
-            PROFIT_LOCK_RATIO = 0.5    # Lock 50% of profit
+            # Risk/Reward and break-even logic
+            initial_risk = position.initial_risk or abs(position.entry_price * (self.config['stop_loss_percent'] / 100))
+            rr = (price_move / initial_risk) if initial_risk else 0
+            break_even_rr = self.config.get('break_even_rr', 1.0)
 
-            if profit_pct > MIN_PROFIT_TO_TRAIL:
-                # Calculate new trailing stop (locks 50% of profit)
-                locked_profit_pct = profit_pct * PROFIT_LOCK_RATIO
-
+            if rr >= break_even_rr and not position.break_even_armed:
+                # Move stop to break-even plus costs
+                buffer = position.entry_price * (self.trade_cost_percent / 100)
                 if position.side == 'long':
-                    trailing_stop = position.entry_price * (1 + locked_profit_pct / 100)
-                    # Update stop loss if trailing stop is higher
-                    if trailing_stop > position.stop_loss:
-                        logger.info(f"📈 Trailing stop activated: {symbol} - Locking {locked_profit_pct:.1f}% profit (current: {profit_pct:.1f}%)")
+                    new_stop = position.entry_price + buffer
+                    if not position.stop_loss or new_stop > position.stop_loss:
+                        position.stop_loss = new_stop
+                else:
+                    new_stop = position.entry_price - buffer
+                    if not position.stop_loss or new_stop < position.stop_loss:
+                        position.stop_loss = new_stop
+                position.break_even_armed = True
+                logger.info(f"🛡️ Break-even stop armed for {symbol} at {position.stop_loss:.4f} (RR: {rr:.2f})")
+
+            # Volatility-aware trailing stop
+            atr = context.get('atr') or position.atr_at_entry
+            trailing_stop = None
+            if atr and atr > 0:
+                atr_mult = self.config.get('atr_trailing_multiplier', 1.5)
+                distance = atr * atr_mult
+                if position.side == 'long':
+                    trailing_stop = current_price - distance
+                    if trailing_stop > (position.stop_loss or 0):
                         position.stop_loss = trailing_stop
-                else:  # short
-                    trailing_stop = position.entry_price * (1 - locked_profit_pct / 100)
-                    # Update stop loss if trailing stop is lower
-                    if trailing_stop < position.stop_loss:
-                        logger.info(f"📈 Trailing stop activated: {symbol} - Locking {locked_profit_pct:.1f}% profit (current: {profit_pct:.1f}%)")
+                        logger.info(f"📈 ATR trailing stop update {symbol}: {trailing_stop:.4f} (ATR={atr:.4f})")
+                else:
+                    trailing_stop = current_price + distance
+                    if not position.stop_loss or trailing_stop < position.stop_loss:
                         position.stop_loss = trailing_stop
+                        logger.info(f"📈 ATR trailing stop update {symbol}: {trailing_stop:.4f} (ATR={atr:.4f})")
+
+            # Profit-based trailing fallback when no ATR
+            if not trailing_stop:
+                MIN_PROFIT_TO_TRAIL = 3.0  # 3%
+                PROFIT_LOCK_RATIO = 0.5    # Lock 50% of profit
+                if profit_pct > MIN_PROFIT_TO_TRAIL:
+                    locked_profit_pct = profit_pct * PROFIT_LOCK_RATIO
+                    if position.side == 'long':
+                        trailing_stop = position.entry_price * (1 + locked_profit_pct / 100)
+                        if not position.stop_loss or trailing_stop > position.stop_loss:
+                            position.stop_loss = trailing_stop
+                            logger.info(f"📈 Trailing stop activated: {symbol} - Locking {locked_profit_pct:.1f}% profit (current: {profit_pct:.1f}%)")
+                    else:
+                        trailing_stop = position.entry_price * (1 - locked_profit_pct / 100)
+                        if not position.stop_loss or trailing_stop < position.stop_loss:
+                            position.stop_loss = trailing_stop
+                            logger.info(f"📈 Trailing stop activated: {symbol} - Locking {locked_profit_pct:.1f}% profit (current: {profit_pct:.1f}%)")
+
+            # Time-based exit
+            if position.max_duration_minutes:
+                age_minutes = (datetime.now() - position.entry_time).total_seconds() / 60
+                if age_minutes > position.max_duration_minutes:
+                    closed_pos = self.close_position(symbol, current_price, "Time Stop Hit")
+                    if closed_pos:
+                        closed.append(closed_pos.to_dict())
+                    continue
 
             # Check stop loss (including trailing stop)
             if position.check_stop_loss(current_price):
-                reason = "Trailing Stop Hit" if profit_pct > MIN_PROFIT_TO_TRAIL else "Stop Loss Hit"
+                reason = "Trailing Stop Hit" if trailing_stop else "Stop Loss Hit"
                 closed_pos = self.close_position(symbol, current_price, reason)
                 if closed_pos:
                     closed.append(closed_pos.to_dict())
@@ -408,7 +588,7 @@ class RiskManager:
 
         for symbol, position in self.positions.items():
             if symbol in current_prices:
-                position.update_pnl(current_prices[symbol])
+                position.update_pnl(current_prices[symbol], cost_rate=self.trade_cost_percent)
                 total_pnl += position.pnl
 
         return {

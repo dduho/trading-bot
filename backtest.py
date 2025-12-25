@@ -7,6 +7,7 @@ import sys
 import os
 import pandas as pd
 from datetime import datetime, timedelta
+import yaml
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 
@@ -33,7 +34,15 @@ def backtest(symbol='BTC/USDT', timeframe='1h', days=30):
     market_feed = MarketDataFeed('binance', testnet=False)
     analyzer = TechnicalAnalyzer()
     signal_gen = SignalGenerator()
-    risk_mgr = RiskManager()
+
+    # Load risk config if available
+    try:
+        cfg = yaml.safe_load(open("config.yaml"))
+        risk_cfg = cfg.get('risk', {})
+    except Exception:
+        risk_cfg = {}
+
+    risk_mgr = RiskManager(risk_cfg)
 
     # Get historical data
     limit = days * 24 if timeframe == '1h' else days * 24 * 60  # Approximate
@@ -57,17 +66,25 @@ def backtest(symbol='BTC/USDT', timeframe='1h', days=30):
         signal = signal_gen.generate_signal(window)
         price = window['close'].iloc[-1]
         timestamp = window.index[-1]
+        market_context = window.iloc[-1].to_dict()
 
         # Execute signals
         if signal['action'] == 'BUY' and signal['confidence'] >= 0.6:
-            can_open, _ = risk_mgr.can_open_position(symbol)
+            can_open, _ = risk_mgr.can_open_position(
+                symbol,
+                market_context=market_context,
+                current_equity=capital,
+                current_price=price
+            )
             if can_open:
-                stop_loss = risk_mgr.calculate_stop_loss(price, 'long')
+                stop_loss = risk_mgr.calculate_stop_loss(price, 'long', atr=market_context.get('atr'))
                 take_profit = risk_mgr.calculate_take_profit(price, stop_loss, 'long')
                 quantity = risk_mgr.calculate_position_size(capital, 2.0, price, stop_loss)
 
                 position = risk_mgr.open_position(
-                    symbol, 'long', price, quantity, stop_loss, take_profit
+                    symbol, 'long', price, quantity, stop_loss, take_profit,
+                    meta=market_context,
+                    current_equity=capital
                 )
                 if position:
                     print(f"[{timestamp}] BUY @ ${price:.2f} (confidence: {signal['confidence']:.1%})")
@@ -80,7 +97,7 @@ def backtest(symbol='BTC/USDT', timeframe='1h', days=30):
                 print(f"[{timestamp}] SELL @ ${price:.2f} | PnL: ${closed.pnl:.2f}")
 
         # Update positions
-        risk_mgr.update_positions({symbol: price})
+        risk_mgr.update_positions({symbol: price}, {symbol: market_context})
 
     # Close any remaining positions
     if symbol in risk_mgr.positions:
