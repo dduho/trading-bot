@@ -194,6 +194,11 @@ class AdaptiveLearningEngine:
                 logger.info("Step 6: Auto-optimization disabled")
                 results['auto_optimization'] = {'enabled': False}
 
+            # Step 7: LOSS PATTERN ANALYSIS (CRITICAL!)
+            logger.info("Step 7: Analyzing loss patterns...")
+            loss_analysis = self._analyze_loss_patterns()
+            results['loss_analysis'] = loss_analysis
+
             # Record learning event
             self._record_learning_event(results)
 
@@ -624,6 +629,79 @@ class AdaptiveLearningEngine:
 
         except Exception as e:
             logger.error(f"Error in auto-optimization: {e}", exc_info=True)
+            results['error'] = str(e)
+
+        return results
+
+    def _analyze_loss_patterns(self) -> Dict:
+        """
+        Analyze patterns in losing trades to identify systematic issues
+
+        Returns:
+            Dict with loss analysis results and recommendations
+        """
+        results = {
+            'enabled': True,
+            'insights': {},
+            'actions_taken': [],
+            'recommendations': []
+        }
+
+        try:
+            from loss_pattern_analyzer import LossPatternAnalyzer
+
+            db_path = self.config.get('database', {}).get('path', 'data/trading_history.db')
+            analyzer = LossPatternAnalyzer(db_path)
+
+            # Generate insights
+            insights = analyzer.generate_actionable_insights()
+            results['insights'] = insights
+
+            # Process action items
+            for action_item in insights.get('action_items', []):
+                action_type = action_item['action']
+                priority = action_item['priority']
+
+                logger.info(f"  [{priority}] {action_type}: {action_item['reason']}")
+
+                # Apply critical/high priority actions immediately
+                if priority in ['CRITICAL', 'HIGH']:
+                    if action_type == 'BLACKLIST_SYMBOLS':
+                        # Blacklist symbols with terrible performance
+                        blacklisted = action_item['symbols']
+                        logger.warning(f"  ⛔ BLACKLISTING {len(blacklisted)} symbols: {', '.join(blacklisted)}")
+                        results['actions_taken'].append({
+                            'action': 'blacklist_symbols',
+                            'symbols': blacklisted,
+                            'reason': action_item['reason']
+                        })
+
+                    elif action_type == 'INCREASE_STOP_LOSS':
+                        current_sl = action_item.get('current', 0.75)
+                        recommended_sl = action_item.get('recommended', 2.0)
+                        logger.warning(f"  📏 STOP LOSS TOO TIGHT: {current_sl:.2f}% → Recommend {recommended_sl:.1f}%")
+                        logger.warning(f"     Reason: {action_item['reason']}")
+                        results['actions_taken'].append({
+                            'action': 'increase_stop_loss',
+                            'current': current_sl,
+                            'recommended': recommended_sl,
+                            'reason': action_item['reason']
+                        })
+
+                else:  # MEDIUM/LOW priority - just recommend
+                    results['recommendations'].append(action_item)
+
+            # Log summary
+            if results['actions_taken']:
+                logger.info(f"  ✅ Loss analysis: {len(results['actions_taken'])} critical issues identified")
+            else:
+                logger.info(f"  ○ Loss analysis: No critical issues found")
+
+        except ImportError:
+            logger.warning("  ⚠️ LossPatternAnalyzer not available - skipping loss analysis")
+            results['enabled'] = False
+        except Exception as e:
+            logger.error(f"Error in loss pattern analysis: {e}", exc_info=True)
             results['error'] = str(e)
 
         return results
