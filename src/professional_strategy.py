@@ -32,11 +32,12 @@ class ProfessionalStrategy:
         self.market_feed = market_feed  # For multi-timeframe analysis
 
         # Grade thresholds for setup quality
-        # Optimized for 1-3 trades/day (professional activity level)
-        # Lowered to 48 to adapt to low-structure ranging markets (Dec 2025)
-        self.GRADE_A_PLUS = 48  # Trade A+ setups (balanced for current market conditions)
-        self.GRADE_A = 40
-        self.GRADE_B = 30
+        # TEMPORARILY LOWERED to generate more trades for learning (5-10 trades/day target)
+        # Will increase back to 48 once we have enough data to validate improvements
+        # Loss Pattern Analysis showed: Need more data with improved symbols/stops
+        self.GRADE_A_PLUS = 40  # TEMPORARY: Lowered from 48 to increase trade volume for learning
+        self.GRADE_A = 35
+        self.GRADE_B = 25
 
         # Multi-timeframe weights (higher TF = more weight)
         self.timeframe_weights = {

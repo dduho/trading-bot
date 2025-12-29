@@ -1,24 +1,16 @@
 # Trading Bot Configuration
 
 # Trading pairs to monitor
-# Large diversification: crypto + forex pour trouver les meilleures opportunités
+# OPTIMIZED based on Loss Pattern Analysis (Win Rate data)
+# Removed: BTC, ETH, SOL, BNB, XRP, AVAX, DOT, ATOM, LTC, NEAR (<10% WR)
+# Kept: Best performers only (UNI 19.6%, LINK 15.8%, DOGE 14%, ADA 13%)
 symbols:
-  # Cryptocurrencies
-  - BTC/USDT    # Bitcoin - référence du marché
-  - ETH/USDT    # Ethereum - 2ème crypto, très liquide
-  - SOL/USDT    # Solana - haute volatilité, layer 1
-  - BNB/USDT    # Binance Coin - exchange token
-  - XRP/USDT    # Ripple - paiements internationaux
-  - ADA/USDT    # Cardano - smart contracts
-  - AVAX/USDT   # Avalanche - DeFi, layer 1
-  - DOGE/USDT   # Dogecoin - meme coin volatile
-  - MATIC/USDT  # Polygon - scaling Ethereum
-  - DOT/USDT    # Polkadot - interopérabilité
-  - LINK/USDT   # Chainlink - oracles
-  - UNI/USDT    # Uniswap - DEX leader
-  - ATOM/USDT   # Cosmos - interchain
-  - LTC/USDT    # Litecoin - paiements rapides
-  - NEAR/USDT   # Near Protocol - layer 1
+  # Best performing cryptocurrencies (proven win rate >13%)
+  - UNI/USDT    # Uniswap - BEST performer (19.6% WR, 51 trades)
+  - LINK/USDT   # Chainlink - Strong (15.8% WR, 19 trades)
+  - DOGE/USDT   # Dogecoin - Good (14.0% WR, 57 trades)
+  - ADA/USDT    # Cardano - Acceptable (13.0% WR, 54 trades)
+  - MATIC/USDT  # Polygon - Testing (not enough data yet)
 
   # Forex pairs (more stable, less volatile than crypto)
   - EUR/USDT    # Euro/Dollar - paire forex majeure
@@ -73,8 +65,8 @@ strategy:
 # Risk management
 risk:
   max_position_size_percent: 5    # 5% par position - plus agressif pour paper trading
-  stop_loss_percent: 2.0          # 2% stop loss - protection raisonnable
-  take_profit_percent: 6.0        # 6% take profit - ratio 3:1 réaliste
+  stop_loss_percent: 2.5          # 2.5% stop loss - INCREASED from 2% (was too tight, 77% hit in <30min)
+  take_profit_percent: 7.5        # 7.5% take profit - ratio 3:1 réaliste (2.5% * 3)
   trailing_stop_percent: 1.5      # Trailing stop à 1.5% pour sécuriser profits (fallback)
   atr_trailing_multiplier: 1.8    # Trailing stop basé sur ATR (distance = ATR * 1.8)
   break_even_rr: 1.0              # Passer au break-even à partir de 1R gagné
@@ -92,7 +84,7 @@ risk:
   volatility_cooldown_max_extra: 2.0    # Cap extension à 2x le cooldown
   correlation_groups:             # Limiter l'exposition corrélée (1 position max par groupe)
     - ["EUR/USDT", "GBP/USDT", "AUD/USDT"]  # Forex - tous corrélés
-    - ["BTC/USDT", "ETH/USDT", "BNB/USDT", "SOL/USDT", "AVAX/USDT", "MATIC/USDT"]  # Crypto
+    - ["UNI/USDT", "LINK/USDT", "DOGE/USDT", "ADA/USDT", "MATIC/USDT"]  # Crypto best performers
   max_positions_per_group: 1      # Max 1 forex + 1 crypto simultanés (diversification)
   blocked_hours: []               # Désactivé - crypto trade 24/7
   close_all_on_loss_cut: false    # False: garde les positions gagnantes au cutoff
