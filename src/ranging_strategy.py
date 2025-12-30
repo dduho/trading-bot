@@ -129,12 +129,16 @@ class RangingStrategy:
         reasons = []
 
         # 1. Price position in Bollinger Bands (40 points max)
-        if bb['position_pct'] < 15:  # Near lower band
+        # LEARNING MODE: Relaxed thresholds to generate 5-10 trades/day
+        if bb['position_pct'] < 20:  # Near lower band (relaxed from 15%)
             score += 40
             reasons.append(f"Near lower BB ({bb['position_pct']:.0f}% position)")
-        elif bb['position_pct'] < 30:
+        elif bb['position_pct'] < 35:  # Below middle (relaxed from 30%)
             score += 25
             reasons.append(f"Below middle BB ({bb['position_pct']:.0f}% position)")
+        elif bb['position_pct'] < 45:  # Lower half (NEW - for learning)
+            score += 15
+            reasons.append(f"Lower half BB ({bb['position_pct']:.0f}% position)")
         else:
             return False, f"Not oversold (BB position: {bb['position_pct']:.0f}%)", 0
 
@@ -166,7 +170,8 @@ class RangingStrategy:
         reason = " | ".join(reasons)
         confidence = score / 100  # Convert to 0-1
 
-        should_enter = score >= 50  # Require 50+ score
+        # LEARNING MODE: Lower threshold to generate more trades for learning
+        should_enter = score >= 35  # Lowered from 50 to increase trade volume
 
         if should_enter:
             logger.info(f"📈 RANGING LONG signal: {reason} (score: {score}/100)")
@@ -194,12 +199,16 @@ class RangingStrategy:
         reasons = []
 
         # 1. Price position in Bollinger Bands (40 points max)
-        if bb['position_pct'] > 85:  # Near upper band
+        # LEARNING MODE: Relaxed thresholds to generate 5-10 trades/day
+        if bb['position_pct'] > 80:  # Near upper band (relaxed from 85%)
             score += 40
             reasons.append(f"Near upper BB ({bb['position_pct']:.0f}% position)")
-        elif bb['position_pct'] > 70:
+        elif bb['position_pct'] > 65:  # Above middle (relaxed from 70%)
             score += 25
             reasons.append(f"Above middle BB ({bb['position_pct']:.0f}% position)")
+        elif bb['position_pct'] > 55:  # Upper half (NEW - for learning)
+            score += 15
+            reasons.append(f"Upper half BB ({bb['position_pct']:.0f}% position)")
         else:
             return False, f"Not overbought (BB position: {bb['position_pct']:.0f}%)", 0
 
@@ -231,7 +240,8 @@ class RangingStrategy:
         reason = " | ".join(reasons)
         confidence = score / 100
 
-        should_enter = score >= 50
+        # LEARNING MODE: Lower threshold to generate more trades for learning
+        should_enter = score >= 35  # Lowered from 50 to increase trade volume
 
         if should_enter:
             logger.info(f"📉 RANGING SHORT signal: {reason} (score: {score}/100)")
