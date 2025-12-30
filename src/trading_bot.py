@@ -132,6 +132,11 @@ class TradingBot:
         self.professional_strategy = ProfessionalStrategy(self.config, market_feed=self.market_feed)
         logger.info("⭐ Professional Strategy initialized - Multi-timeframe analysis enabled!")
 
+        # Initialize Ranging Strategy (for sideways/choppy markets)
+        from ranging_strategy import RangingStrategy
+        self.ranging_strategy = RangingStrategy(self.config)
+        logger.info("🔄 Ranging Strategy initialized - Mean reversion mode ready!")
+
         # Initialize Autonomous Watchdog (self-healing system)
         try:
             from autonomous_watchdog import AutonomousWatchdog
@@ -462,14 +467,39 @@ class TradingBot:
             logger.info(f"🎯 REGIME FILTER: {symbol} - {regime_reason}")
             return
 
-        # PROFESSIONAL STRATEGY: Only A+ setups (multi-timeframe confirmation)
-        should_trade_pro, pro_reasoning = self.professional_strategy.should_take_trade(
-            signal['action'], df, market_regime, symbol=symbol
-        )
-        # ALWAYS log the PRO FILTER decision (accept OR reject)
-        logger.info(f"⭐ PRO FILTER: {symbol} - {pro_reasoning}")
-        if not should_trade_pro:
-            return
+        # ADAPTIVE STRATEGY: Auto-detect market regime and use appropriate strategy
+        # Detect if market is trending or ranging
+        regime_type = self.ranging_strategy.analyze_market_regime(df) if df is not None else 'unknown'
+        use_ranging_strategy = regime_type in ['ranging', 'choppy']  # Store for later use in stops calculation
+
+        if use_ranging_strategy:
+            # Use RANGING strategy for sideways/choppy markets
+            logger.info(f"🔄 Market regime: {regime_type.upper()} - Using Ranging Strategy (mean reversion)")
+
+            # Check if ranging strategy approves this trade
+            indicators = analysis.get('indicators', {})
+            if signal['action'] == 'BUY':
+                should_enter, reason, _ = self.ranging_strategy.should_enter_long(df, indicators)
+            elif signal['action'] == 'SELL':
+                should_enter, reason, _ = self.ranging_strategy.should_enter_short(df, indicators)
+            else:
+                should_enter = False
+                reason = "HOLD signal - no ranging entry"
+
+            logger.info(f"🔄 RANGING FILTER: {symbol} - {'✅ APPROVED' if should_enter else '⛔ REJECTED'}: {reason}")
+            if not should_enter:
+                return
+
+        else:
+            # Use PROFESSIONAL strategy for trending markets
+            logger.info(f"📈 Market regime: {regime_type.upper()} - Using Professional Strategy (trend following)")
+            should_trade_pro, pro_reasoning = self.professional_strategy.should_take_trade(
+                signal['action'], df, market_regime, symbol=symbol
+            )
+            # ALWAYS log the PRO FILTER decision (accept OR reject)
+            logger.info(f"⭐ PRO FILTER: {symbol} - {pro_reasoning}")
+            if not should_trade_pro:
+                return
 
         # Check if we can open a position
         market_context = analysis.get('market_conditions', {}) or {}
@@ -524,11 +554,16 @@ class TradingBot:
                 return
 
         if signal['action'] == 'BUY' and can_open:
-            # Calculate position parameters using PROFESSIONAL STRATEGY (structure-based stops)
-            market_structure = self.professional_strategy.analyze_market_structure(df)
-            stop_loss, take_profit = self.professional_strategy.calculate_professional_stops(
-                df, 'long', price, market_structure
-            )
+            # Calculate position parameters based on active strategy
+            if use_ranging_strategy:
+                # RANGING: Use Bollinger Bands for stops (mean reversion)
+                stop_loss, take_profit = self.ranging_strategy.calculate_ranging_stops(df, 'long', price)
+            else:
+                # PROFESSIONAL: Use market structure for stops (trend following)
+                market_structure = self.professional_strategy.analyze_market_structure(df)
+                stop_loss, take_profit = self.professional_strategy.calculate_professional_stops(
+                    df, 'long', price, market_structure
+                )
 
             # Calculate position size with intelligent sizing based on setup quality
             base_quantity = self.risk_manager.calculate_position_size(
@@ -733,11 +768,16 @@ class TradingBot:
 
         # If SELL and no position open, open SHORT (paper synthetic)
         elif signal['action'] == 'SELL' and can_open:
-            # Calculate position parameters using PROFESSIONAL STRATEGY (structure-based stops)
-            market_structure = self.professional_strategy.analyze_market_structure(df)
-            stop_loss, take_profit = self.professional_strategy.calculate_professional_stops(
-                df, 'short', price, market_structure
-            )
+            # Calculate position parameters based on active strategy
+            if use_ranging_strategy:
+                # RANGING: Use Bollinger Bands for stops (mean reversion)
+                stop_loss, take_profit = self.ranging_strategy.calculate_ranging_stops(df, 'short', price)
+            else:
+                # PROFESSIONAL: Use market structure for stops (trend following)
+                market_structure = self.professional_strategy.analyze_market_structure(df)
+                stop_loss, take_profit = self.professional_strategy.calculate_professional_stops(
+                    df, 'short', price, market_structure
+                )
 
             # Calculate position size with intelligent sizing
             base_quantity = self.risk_manager.calculate_position_size(
