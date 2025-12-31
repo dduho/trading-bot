@@ -320,26 +320,32 @@ class AutonomousWatchdog:
         """
         stats = self.db.get_performance_stats(days=1)
 
-        # Check if win rate is critically low
-        if stats['total_trades'] > 30 and stats['win_rate'] < 0.30:
-            logger.warning(f"⚠️ CRITICAL WIN RATE: {stats['win_rate']:.1%} (expected: >30%)")
+        # LEARNING MODE: Tolerate low win rate during data collection phase
+        # Only intervene if win rate is CATASTROPHICALLY low AND we have a lot of trades
+        if stats['total_trades'] > 100 and stats['win_rate'] < 0.05:  # <5% win rate with 100+ trades
+            logger.warning(f"⚠️ CATASTROPHIC WIN RATE: {stats['win_rate']:.1%} (100+ trades)")
 
             # AUTO-FIX: Increase confidence to be more selective, but CAP at 10%
             current_conf = self.config.get('strategy', {}).get('min_confidence', 0.05)
-            
+
             # Don't adjust if already at or above 10%
             if current_conf >= 0.10:
                 logger.info(f"ℹ️ Confidence already at {current_conf:.1%} (max 10%) - no increase")
-                return f"Critical win rate: {stats['win_rate']:.1%}, but confidence at max (10%)"
-            
+                return f"Catastrophic win rate: {stats['win_rate']:.1%}, but confidence at max (10%)"
+
             new_conf = min(0.10, current_conf + 0.02)  # Increase by 2%, max 10%
 
             logger.warning(f"🔧 AUTO-FIX: Increasing selectivity {current_conf:.1%} → {new_conf:.1%}")
             self.config['strategy']['min_confidence'] = new_conf
-            self.auto_fixes_applied.append(f"Increased selectivity: {current_conf:.1%} → {new_conf:.1%} (win rate too low)")
+            self.auto_fixes_applied.append(f"Increased selectivity: {current_conf:.1%} → {new_conf:.1%} (catastrophic WR)")
             self.last_intervention = datetime.now()
 
-            return f"Critical win rate: {stats['win_rate']:.1%} (expected: >30%)"
+            return f"Catastrophic win rate: {stats['win_rate']:.1%} (100+ trades)"
+
+        # Log low win rate but don't intervene during learning phase
+        elif stats['total_trades'] > 30 and stats['win_rate'] < 0.30:
+            logger.info(f"📊 LEARNING MODE: Low win rate {stats['win_rate']:.1%} tolerated for data collection (30-100 trades)")
+            return None  # Don't add to issues - this is expected during learning
 
         return None
 
