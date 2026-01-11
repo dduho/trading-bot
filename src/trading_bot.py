@@ -341,6 +341,61 @@ class TradingBot:
         }
         return mapping.get(timeframe, 60)
 
+    def _check_disk_space(self):
+        """
+        Check disk space and clean up logs if disk usage > 85%
+        Prevents disk full crashes that block bot for days
+        """
+        try:
+            import shutil
+            bot_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            stat = shutil.disk_usage(bot_dir)
+
+            used_percent = (stat.used / stat.total) * 100
+            free_gb = stat.free / (1024**3)
+
+            # Log disk status every check
+            logger.info(f"💾 Disk: {used_percent:.1f}% used, {free_gb:.1f}GB free")
+
+            if used_percent > 85:
+                logger.warning(f"⚠️ DISK SPACE CRITICAL: {used_percent:.1f}% used")
+
+                # Clean up log files
+                log_files = ['bot.log', 'trading_bot.log', 'market_alerts.log']
+                total_freed = 0
+
+                for log_file in log_files:
+                    log_path = os.path.join(bot_dir, log_file)
+                    if os.path.exists(log_path):
+                        size_mb = os.path.getsize(log_path) / (1024 * 1024)
+                        if size_mb > 50:  # Truncate logs > 50MB
+                            try:
+                                # Keep last 10000 lines
+                                with open(log_path, 'r') as f:
+                                    lines = f.readlines()
+
+                                with open(log_path, 'w') as f:
+                                    f.writelines(lines[-10000:])
+
+                                new_size_mb = os.path.getsize(log_path) / (1024 * 1024)
+                                freed_mb = size_mb - new_size_mb
+                                total_freed += freed_mb
+                                logger.warning(f"  🗑️ Truncated {log_file}: {size_mb:.1f}MB → {new_size_mb:.1f}MB (freed {freed_mb:.1f}MB)")
+                            except Exception as e:
+                                logger.error(f"Failed to truncate {log_file}: {e}")
+
+                if total_freed > 0:
+                    logger.warning(f"✅ Freed {total_freed:.1f}MB of disk space")
+
+                    # Recheck
+                    stat = shutil.disk_usage(bot_dir)
+                    used_percent = (stat.used / stat.total) * 100
+                    free_gb = stat.free / (1024**3)
+                    logger.info(f"📊 After cleanup: {used_percent:.1f}% used, {free_gb:.1f}GB free")
+
+        except Exception as e:
+            logger.error(f"Error checking disk space: {e}")
+
     def analyze_symbol(self, symbol: str) -> Dict:
         """
         Analyze a symbol and generate trading signal
@@ -1069,6 +1124,10 @@ class TradingBot:
         while self.running:
             try:
                 iteration += 1
+
+                # Check disk space every 100 iterations (~25 minutes at 15s interval)
+                if iteration % 100 == 0:
+                    self._check_disk_space()
 
                 # CRITICAL: Force daily reset check every iteration
                 # Prevents stuck daily_trades counter from blocking all trading
