@@ -1023,12 +1023,14 @@ class TradingBot:
         print(f"Update Interval: {self.update_interval}s\n")
 
         # Start Telegram command handler
-        if self.telegram_commands:
-            try:
-                await self.telegram_commands.start()
-                logger.info("Telegram commands started")
-            except Exception as e:
-                logger.error(f"Failed to start Telegram commands: {e}")
+        # TEMPORARILY DISABLED: Causing webhook conflict - bot blocked for 6 days
+        # TODO: Fix telegram commands to work without polling (use webhook or disable)
+        # if self.telegram_commands:
+        #     try:
+        #         await self.telegram_commands.start()
+        #         logger.info("Telegram commands started")
+        #     except Exception as e:
+        #         logger.error(f"Failed to start Telegram commands: {e}")
 
         # Print learning system status
         learning_params = self.learning_engine.get_current_strategy_params()
