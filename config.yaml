@@ -14,7 +14,7 @@ symbols:
 
   # Forex pairs (more stable, less volatile than crypto)
   - EUR/USDT    # Euro/Dollar - paire forex majeure
-  - GBP/USDT    # Pound/Dollar - paire forex majeure
+  # REMOVED GBP/USDT: 0.0% WR on 385 trades - catastrophic performance
   - AUD/USDT    # Australian Dollar - matières premières
 
 # Analysis timeframes

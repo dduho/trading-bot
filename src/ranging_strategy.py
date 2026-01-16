@@ -129,18 +129,20 @@ class RangingStrategy:
         reasons = []
 
         # 1. Price position in Bollinger Bands (40 points max)
-        # LEARNING MODE: Relaxed thresholds to generate 5-10 trades/day
+        # LEARNING MODE: Accept ALL positions, just score them differently
         if bb['position_pct'] < 20:  # Near lower band (relaxed from 15%)
             score += 40
             reasons.append(f"Near lower BB ({bb['position_pct']:.0f}% position)")
         elif bb['position_pct'] < 35:  # Below middle (relaxed from 30%)
             score += 25
             reasons.append(f"Below middle BB ({bb['position_pct']:.0f}% position)")
-        elif bb['position_pct'] < 45:  # Lower half (NEW - for learning)
+        elif bb['position_pct'] < 50:  # Lower half (for learning)
             score += 15
             reasons.append(f"Lower half BB ({bb['position_pct']:.0f}% position)")
         else:
-            return False, f"Not oversold (BB position: {bb['position_pct']:.0f}%)", 0
+            # LEARNING MODE: Don't reject, just give minimal points
+            score += 5
+            reasons.append(f"Not ideal position ({bb['position_pct']:.0f}%)")
 
         # 2. RSI confirmation (30 points max)
         if rsi < 30:
@@ -199,18 +201,20 @@ class RangingStrategy:
         reasons = []
 
         # 1. Price position in Bollinger Bands (40 points max)
-        # LEARNING MODE: Relaxed thresholds to generate 5-10 trades/day
+        # LEARNING MODE: Accept ALL positions, just score them differently
         if bb['position_pct'] > 80:  # Near upper band (relaxed from 85%)
             score += 40
             reasons.append(f"Near upper BB ({bb['position_pct']:.0f}% position)")
         elif bb['position_pct'] > 65:  # Above middle (relaxed from 70%)
             score += 25
             reasons.append(f"Above middle BB ({bb['position_pct']:.0f}% position)")
-        elif bb['position_pct'] > 55:  # Upper half (NEW - for learning)
+        elif bb['position_pct'] > 50:  # Upper half (for learning)
             score += 15
             reasons.append(f"Upper half BB ({bb['position_pct']:.0f}% position)")
         else:
-            return False, f"Not overbought (BB position: {bb['position_pct']:.0f}%)", 0
+            # LEARNING MODE: Don't reject, just give minimal points
+            score += 5
+            reasons.append(f"Not ideal position ({bb['position_pct']:.0f}%)")
 
         # 2. RSI confirmation (30 points max)
         if rsi > 70:
