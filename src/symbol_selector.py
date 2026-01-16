@@ -22,8 +22,9 @@ class SymbolSelector:
         self.available_symbols = config.get('symbols', config.get('trading_pairs', []))
 
         # Performance thresholds
-        self.min_trades_for_evaluation = 20  # Need at least 20 trades to evaluate
-        self.poor_performance_threshold = 0.30  # < 30% WR = poor
+        # LEARNING MODE: Very low threshold to allow data collection
+        self.min_trades_for_evaluation = 50  # Need more data before blocking (was 20)
+        self.poor_performance_threshold = 0.05  # < 5% WR = poor (was 30% - too strict for learning)
         self.good_performance_threshold = 0.40  # > 40% WR = good
 
         # Cache for performance data
